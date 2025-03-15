@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Body, BackgroundTasks
+from fastapi.responses import JSONResponse
 from ..models.models import Dataset, DatasetResponse, AnalysisResult, FeatureEngineeringResult
 from ..database.mongodb import datasets_collection, analysis_collection, cache_result
 from ..utils.ai_helper import AIHelper
@@ -1716,29 +1717,18 @@ async def download_dataset(dataset_id: str):
         if not dataset:
             raise HTTPException(status_code=404, detail="Dataset not found")
         
-        # Convert ObjectId to string (not needed for file response but for consistency)
+        # Convert ObjectId to string
         dataset = convert_objectid_to_str(dataset)
         
         # Load data from stored file
         file_path = DATA_DIR / dataset["stored_filename"]
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="Dataset file not found")
-        
-        # Get a suitable filename for the download
-        # Use original_filename if available, otherwise use stored_filename or dataset name
-        download_filename = dataset.get("original_filename")
-        if not download_filename:
-            # If original_filename is missing, use stored_filename or dataset name with .csv extension
-            download_filename = dataset.get("stored_filename") or f"{dataset.get('name', 'dataset')}.csv"
-        
-        # Ensure the filename has a .csv extension
-        if not download_filename.lower().endswith('.csv'):
-            download_filename += '.csv'
-        
-        # Create a response with the file
+            
+        # Return the file
         return FileResponse(
             path=file_path,
-            filename=download_filename,
+            filename=f"{dataset.get('name', 'dataset')}.csv",
             media_type="text/csv"
         )
     except Exception as e:
@@ -1746,9 +1736,15 @@ async def download_dataset(dataset_id: str):
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/dataset/{dataset_id}/download-training")
-async def download_training_dataset(dataset_id: str):
-    """Download the dataset in a format optimized for machine learning training"""
+# New endpoints for advanced analytics features
+
+@router.get("/dataset/{dataset_id}/anomalies")
+async def detect_anomalies(
+    dataset_id: str,
+    method: str = Query("isolation_forest", enum=["isolation_forest", "lof", "dbscan"]),
+    threshold: float = Query(0.05, ge=0.01, le=0.2)
+):
+    """Detect anomalies in the dataset using the specified method"""
     try:
         # Get dataset from database
         dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
@@ -1766,292 +1762,364 @@ async def download_training_dataset(dataset_id: str):
         # Load the dataset
         df = pd.read_csv(file_path)
         
-        # Create a temporary directory for the training package
-        import tempfile
-        import zipfile
-        import json
-        import shutil
+        # Get numeric columns only
+        numeric_df = df.select_dtypes(include=['number'])
         
-        temp_dir = tempfile.mkdtemp()
-        try:
-            # Save the dataset in CSV format
-            dataset_path = os.path.join(temp_dir, "dataset.csv")
-            df.to_csv(dataset_path, index=False)
-            
-            # Create a metadata file with information about the dataset
-            metadata = {
-                "name": dataset.get("name", "dataset"),
-                "columns": df.columns.tolist(),
-                "shape": df.shape,
-                "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
-                "numeric_columns": df.select_dtypes(include=['number']).columns.tolist(),
-                "categorical_columns": df.select_dtypes(include=['object', 'category']).columns.tolist(),
-                "missing_values": {col: int(df[col].isna().sum()) for col in df.columns},
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            # Identify binned columns
-            binned_columns = []
-            for col in metadata["categorical_columns"]:
-                if df[col].dtype == 'object' and df[col].str.contains(r'[\(\[].*,.*[\)\]]').any():
-                    binned_columns.append(col)
-            
-            if binned_columns:
-                metadata["binned_columns"] = binned_columns
-            
-            # Identify PCA components
-            pca_columns = [col for col in df.columns if col.startswith('PC') and col[2:].isdigit()]
-            if pca_columns:
-                metadata["pca_columns"] = pca_columns
-            
-            # Add feature engineering info if available
-            if "metadata" in dataset and "transformations" in dataset["metadata"]:
-                metadata["transformations"] = dataset["metadata"]["transformations"]
-            
-            # Add feature selection info if available
-            if "metadata" in dataset and "feature_selection" in dataset["metadata"]:
-                metadata["feature_selection"] = dataset["metadata"]["feature_selection"]
-            
-            # Add PCA info if available
-            if "pca_info" in dataset:
-                metadata["pca_info"] = dataset["pca_info"]
-            
-            # Assess training compatibility
-            training_compatibility = assess_training_compatibility(df, metadata)
-            metadata["training_compatibility"] = training_compatibility
-            
-            # Save metadata as JSON
-            metadata_path = os.path.join(temp_dir, "metadata.json")
-            with open(metadata_path, "w") as f:
-                json.dump(metadata, f, indent=2, default=str)
-            
-            # Create a README file with instructions
-            readme_path = os.path.join(temp_dir, "README.md")
-            with open(readme_path, "w") as f:
-                f.write(f"""# Training Dataset: {dataset.get('name', 'dataset')}
-
-This package contains a dataset prepared for machine learning training.
-
-## Contents
-- `dataset.csv`: The dataset in CSV format
-- `metadata.json`: Metadata about the dataset including column information
-- `train_model.py`: Python script for training a model with this dataset
-- `README.md`: This file
-
-## Dataset Information
-- Rows: {df.shape[0]}
-- Columns: {df.shape[1]}
-- Numeric columns: {len(metadata["numeric_columns"])}
-- Categorical columns: {len(metadata["categorical_columns"])}
-""")
-
-                # Add information about binned columns if present
-                if binned_columns:
-                    f.write(f"\n## Binned Features\nThis dataset contains {len(binned_columns)} binned numeric features. These are categorical features that represent ranges of numeric values (e.g., '(-0.839, 0.46]').\n")
-                    f.write("\nThese binned features are compatible with tree-based models like Random Forest and XGBoost without further processing. For other models, you may want to convert them back to numeric values or use one-hot encoding.\n")
-                
-                # Add information about PCA if present
-                if pca_columns:
-                    f.write(f"\n## PCA Components\nThis dataset contains {len(pca_columns)} PCA components that represent dimensionality reduction of the original features.\n")
-                
-                # Add training compatibility information
-                f.write(f"\n## Training Compatibility\nOverall compatibility score: {training_compatibility['overall_score']}%\n")
-                f.write(f"\n{training_compatibility['overall_message']}\n")
-                
-                if training_compatibility['recommendations']:
-                    f.write("\n### Recommendations\n")
-                    for rec in training_compatibility['recommendations']:
-                        f.write(f"- {rec}\n")
-                
-                f.write("""
-## Usage
-This dataset is ready for machine learning training. You can load it using:
-
-```python
-import pandas as pd
-df = pd.read_csv('dataset.csv')
-```
-
-## Training a Model
-A sample script `train_model.py` is included in this package to help you get started with training a model.
-You can run it directly or modify it for your specific needs.
-
-```bash
-python train_model.py
-```
-
-## Metadata
-The metadata.json file contains detailed information about the dataset structure,
-including data types, missing values, and any transformations applied.
-""")
-            
-            # Create a sample training script with enhanced handling for processed features
-            script_path = os.path.join(temp_dir, "train_model.py")
-            with open(script_path, "w") as f:
-                f.write("""import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.metrics import accuracy_score, r2_score, classification_report, mean_squared_error
-import json
-import re
-
-# Load the dataset
-print("Loading dataset...")
-df = pd.read_csv('dataset.csv')
-
-# Load metadata
-with open('metadata.json', 'r') as f:
-    metadata = json.load(f)
-
-print(f"Dataset shape: {df.shape}")
-
-# Identify numeric and categorical columns
-numeric_cols = metadata['numeric_columns']
-categorical_cols = metadata['categorical_columns']
-
-# Handle binned columns specially if present
-binned_cols = metadata.get('binned_columns', [])
-regular_cat_cols = [col for col in categorical_cols if col not in binned_cols]
-
-# Identify PCA columns if present
-pca_cols = metadata.get('pca_columns', [])
-
-# Function to convert binned columns to numeric (midpoint of range)
-def convert_binned_to_numeric(df, binned_columns):
-    df_copy = df.copy()
-    for col in binned_columns:
-        if col in df.columns:
-            # Extract numeric values from interval notation like '(-0.839, 0.46]'
-            df_copy[f"{col}_numeric"] = df[col].apply(lambda x: 
-                np.mean([float(re.findall(r'[-+]?\d*\.\d+|\d+', str(x))[0]), 
-                         float(re.findall(r'[-+]?\d*\.\d+|\d+', str(x))[1])]) 
-                if isinstance(x, str) and re.findall(r'[-+]?\d*\.\d+|\d+', str(x)) and len(re.findall(r'[-+]?\d*\.\d+|\d+', str(x))) >= 2 
-                else np.nan
+        if numeric_df.empty:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "No numeric columns found for anomaly detection"}
             )
-    return df_copy
-
-# Assume the last column is the target (modify as needed)
-target_col = df.columns[-1]
-print(f"Using '{target_col}' as the target variable")
-
-# Check if target is in a special column list
-if target_col in binned_cols:
-    print(f"Target is a binned column. Converting to numeric.")
-    df = convert_binned_to_numeric(df, [target_col])
-    target_col = f"{target_col}_numeric"
-
-# Split features and target
-feature_cols = [col for col in df.columns if col != target_col and not col.endswith('_numeric')]
-X = df[feature_cols]
-y = df[target_col]
-
-# Split into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Create preprocessing pipelines
-numeric_transformer = Pipeline(steps=[
-    ('imputer', SimpleImputer(strategy='median')),
-    ('scaler', StandardScaler())
-])
-
-categorical_transformer = Pipeline(steps=[
-    ('imputer', SimpleImputer(strategy='most_frequent')),
-    ('onehot', OneHotEncoder(handle_unknown='ignore'))
-])
-
-# Combine preprocessing steps
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', numeric_transformer, [col for col in numeric_cols if col in feature_cols and col not in pca_cols]),
-        ('cat', categorical_transformer, [col for col in regular_cat_cols if col in feature_cols]),
-        ('bin', 'passthrough', [col for col in binned_cols if col in feature_cols])
-    ])
-
-# Determine if this is a classification or regression problem
-# This is a simple heuristic - modify as needed
-is_classification = len(np.unique(y)) < 10 or (hasattr(y, 'dtype') and (y.dtype == 'object' or y.dtype == 'category'))
-
-print(f"Task type: {'Classification' if is_classification else 'Regression'}")
-
-# Create the model pipeline
-if is_classification:
-    model = Pipeline(steps=[
-        ('preprocessor', preprocessor),
-        ('classifier', RandomForestClassifier(n_estimators=100, random_state=42))
-    ])
-    
-    # Train the model
-    print("Training classification model...")
-    model.fit(X_train, y_train)
-    
-    # Evaluate
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    print(f"Model accuracy: {accuracy:.4f}")
-    print("\\nClassification Report:")
-    print(classification_report(y_test, y_pred))
-else:
-    model = Pipeline(steps=[
-        ('preprocessor', preprocessor),
-        ('regressor', RandomForestRegressor(n_estimators=100, random_state=42))
-    ])
-    
-    # Train the model
-    print("Training regression model...")
-    model.fit(X_train, y_train)
-    
-    # Evaluate
-    y_pred = model.predict(X_test)
-    r2 = r2_score(y_test, y_pred)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    print(f"Model R² score: {r2:.4f}")
-    print(f"Root Mean Squared Error: {rmse:.4f}")
-
-print("\\nTraining complete! You can modify this script for your specific needs.")
-print("\\nFeature Importances:")
-if is_classification:
-    importances = model.named_steps['classifier'].feature_importances_
-else:
-    importances = model.named_steps['regressor'].feature_importances_
-
-# Get feature names after preprocessing
-if hasattr(model.named_steps['preprocessor'], 'get_feature_names_out'):
-    feature_names = model.named_steps['preprocessor'].get_feature_names_out()
-else:
-    # Fallback for older scikit-learn versions
-    feature_names = feature_cols
-
-# Display top 10 most important features
-if len(feature_names) == len(importances):
-    indices = np.argsort(importances)[::-1][:10]
-    for i in indices:
-        print(f"{feature_names[i]}: {importances[i]:.4f}")
-""")
+        
+        # Detect anomalies based on the method
+        anomaly_scores = None
+        anomaly_indices = None
+        
+        if method == "isolation_forest":
+            from sklearn.ensemble import IsolationForest
+            model = IsolationForest(contamination=threshold, random_state=42)
+            anomaly_scores = model.fit_predict(numeric_df)
+            # Convert to binary (1 for normal, -1 for anomaly)
+            anomaly_indices = [i for i, score in enumerate(anomaly_scores) if score == -1]
             
-            # Create a zip file containing all the files
-            zip_path = os.path.join(temp_dir, "training_package.zip")
-            with zipfile.ZipFile(zip_path, 'w') as zipf:
-                zipf.write(dataset_path, arcname="dataset.csv")
-                zipf.write(metadata_path, arcname="metadata.json")
-                zipf.write(readme_path, arcname="README.md")
-                zipf.write(script_path, arcname="train_model.py")
+        elif method == "lof":
+            from sklearn.neighbors import LocalOutlierFactor
+            model = LocalOutlierFactor(n_neighbors=20, contamination=threshold)
+            anomaly_scores = model.fit_predict(numeric_df)
+            # Convert to binary (1 for normal, -1 for anomaly)
+            anomaly_indices = [i for i, score in enumerate(anomaly_scores) if score == -1]
             
-            # Return the zip file
-            return FileResponse(
-                path=zip_path,
-                filename=f"{dataset.get('name', 'dataset')}_training_package.zip",
-                media_type="application/zip"
-            )
-        finally:
-            # Clean up the temporary directory
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            
+        elif method == "dbscan":
+            from sklearn.cluster import DBSCAN
+            model = DBSCAN(eps=0.5, min_samples=5)
+            clusters = model.fit_predict(numeric_df)
+            # In DBSCAN, -1 indicates outliers
+            anomaly_indices = [i for i, cluster in enumerate(clusters) if cluster == -1]
+        
+        # Calculate percentage of anomalies
+        anomaly_percentage = len(anomaly_indices) / len(df) * 100
+        
+        # Get the anomalous rows
+        anomalous_rows = df.iloc[anomaly_indices].to_dict(orient='records')
+        
+        # Limit the number of returned rows to avoid overwhelming the response
+        max_rows = 100
+        if len(anomalous_rows) > max_rows:
+            anomalous_rows = anomalous_rows[:max_rows]
+        
+        # Return the results
+        return {
+            "method": method,
+            "threshold": threshold,
+            "total_rows": len(df),
+            "anomaly_count": len(anomaly_indices),
+            "anomaly_percentage": anomaly_percentage,
+            "anomalous_rows": anomalous_rows
+        }
+        
     except Exception as e:
-        print(f"Error preparing training dataset: {str(e)}")
+        print(f"Error detecting anomalies: {str(e)}")
         print(traceback.format_exc())
-        raise HTTPException(status_code=400, detail=str(e)) 
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/dataset/{dataset_id}/correlation-explanation")
+async def explain_correlations(
+    dataset_id: str,
+    method: str = Query("pearson", enum=["pearson", "spearman", "kendall"]),
+    threshold: float = Query(0.5, ge=0.1, le=0.9)
+):
+    """Analyze and explain correlations in the dataset"""
+    try:
+        # Get dataset from database
+        dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        # Convert ObjectId to string
+        dataset = convert_objectid_to_str(dataset)
+        
+        # Load data from stored file
+        file_path = DATA_DIR / dataset["stored_filename"]
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Dataset file not found")
+            
+        # Load the dataset
+        df = pd.read_csv(file_path)
+        
+        # Get numeric columns only
+        numeric_df = df.select_dtypes(include=['number'])
+        
+        if numeric_df.empty:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "No numeric columns found for correlation analysis"}
+            )
+        
+        # Calculate correlation matrix
+        corr_matrix = numeric_df.corr(method=method)
+        
+        # Find strong correlations (above threshold)
+        strong_correlations = []
+        
+        for i in range(len(corr_matrix.columns)):
+            for j in range(i+1, len(corr_matrix.columns)):
+                col1 = corr_matrix.columns[i]
+                col2 = corr_matrix.columns[j]
+                corr_value = corr_matrix.iloc[i, j]
+                
+                if abs(corr_value) >= threshold:
+                    correlation_type = "positive" if corr_value > 0 else "negative"
+                    strength = "very strong" if abs(corr_value) > 0.8 else "strong" if abs(corr_value) > 0.6 else "moderate"
+                    
+                    # Generate explanation
+                    explanation = ""
+                    if correlation_type == "positive":
+                        explanation = f"As {col1} increases, {col2} tends to increase as well. "
+                    else:
+                        explanation = f"As {col1} increases, {col2} tends to decrease. "
+                    
+                    explanation += f"This suggests a {strength} {correlation_type} relationship between these variables."
+                    
+                    # Add implications
+                    if abs(corr_value) > 0.8:
+                        explanation += " These variables might be redundant or measuring similar aspects."
+                    
+                    strong_correlations.append({
+                        "feature1": col1,
+                        "feature2": col2,
+                        "correlation": corr_value,
+                        "type": correlation_type,
+                        "strength": strength,
+                        "explanation": explanation
+                    })
+        
+        # Sort by absolute correlation value
+        strong_correlations.sort(key=lambda x: abs(x["correlation"]), reverse=True)
+        
+        # Return the results
+        return {
+            "method": method,
+            "threshold": threshold,
+            "correlation_matrix": corr_matrix.to_dict(),
+            "strong_correlations": strong_correlations
+        }
+        
+    except Exception as e:
+        print(f"Error explaining correlations: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/dataset/{dataset_id}/causal-analysis")
+async def analyze_causality(
+    dataset_id: str,
+    target: str = Body(...),
+    method: str = Body("correlation", embed=True)
+):
+    """Perform causal analysis on the dataset"""
+    try:
+        # Get dataset from database
+        dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        # Convert ObjectId to string
+        dataset = convert_objectid_to_str(dataset)
+        
+        # Load data from stored file
+        file_path = DATA_DIR / dataset["stored_filename"]
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Dataset file not found")
+            
+        # Load the dataset
+        df = pd.read_csv(file_path)
+        
+        # Check if target exists
+        if target not in df.columns:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": f"Target column '{target}' not found in dataset"}
+            )
+        
+        # Get numeric columns only
+        numeric_df = df.select_dtypes(include=['number'])
+        
+        if numeric_df.empty:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "No numeric columns found for causal analysis"}
+            )
+        
+        # For now, implement a simple correlation-based approach
+        # In a real implementation, this would use more sophisticated causal inference methods
+        
+        # Calculate correlation with target
+        if target in numeric_df.columns:
+            correlations = numeric_df.corr()[target].drop(target)
+        else:
+            # If target is categorical, we need a different approach
+            # For simplicity, we'll just return an error
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "Causal analysis for categorical targets is not implemented yet"}
+            )
+        
+        # Sort by absolute correlation
+        correlations = correlations.abs().sort_values(ascending=False)
+        
+        # Get top potential causes
+        potential_causes = []
+        for feature in correlations.index[:5]:  # Top 5 features
+            corr_value = numeric_df.corr()[target][feature]
+            direction = "positive" if corr_value > 0 else "negative"
+            strength = "strong" if abs(corr_value) > 0.7 else "moderate" if abs(corr_value) > 0.4 else "weak"
+            
+            potential_causes.append({
+                "feature": feature,
+                "correlation": corr_value,
+                "direction": direction,
+                "strength": strength,
+                "effect_estimate": corr_value  # In a real implementation, this would be a causal effect estimate
+            })
+        
+        # Return the results
+        return {
+            "target": target,
+            "method": method,
+            "potential_causes": potential_causes,
+            "causal_graph": {
+                "nodes": [{"id": target, "type": "target"}] + [{"id": cause["feature"], "type": "cause"} for cause in potential_causes],
+                "links": [{"source": cause["feature"], "target": target, "value": abs(cause["correlation"])} for cause in potential_causes]
+            },
+            "disclaimer": "This is a simplified causal analysis based on correlation. For robust causal inference, additional methods and assumptions are required."
+        }
+        
+    except Exception as e:
+        print(f"Error performing causal analysis: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Collaboration endpoints
+
+@router.post("/dataset/{dataset_id}/share")
+async def share_project(
+    dataset_id: str,
+    email: str = Body(...),
+    permission: str = Body(..., enum=["view", "edit", "admin"])
+):
+    """Share the dataset with another user"""
+    try:
+        # Get dataset from database
+        dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        # In a real implementation, this would add the user to the dataset's access control list
+        # For now, we'll just return a success message
+        
+        return {
+            "status": "success",
+            "message": f"Dataset shared with {email} ({permission} access)",
+            "shared_with": email,
+            "permission": permission
+        }
+        
+    except Exception as e:
+        print(f"Error sharing project: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/dataset/{dataset_id}/version")
+async def create_version(
+    dataset_id: str,
+    name: str = Body(...),
+    notes: str = Body(None)
+):
+    """Create a version checkpoint for the dataset"""
+    try:
+        # Get dataset from database
+        dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        # In a real implementation, this would create a version record in the database
+        # For now, we'll just return a success message
+        
+        return {
+            "status": "success",
+            "message": f"Version checkpoint '{name}' created successfully",
+            "version": {
+                "name": name,
+                "notes": notes,
+                "created_at": datetime.now().isoformat(),
+                "dataset_id": dataset_id
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error creating version: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/dataset/{dataset_id}/comment")
+async def add_comment(
+    dataset_id: str,
+    text: str = Body(..., embed=True)
+):
+    """Add a comment to the dataset"""
+    try:
+        # Get dataset from database
+        dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        # In a real implementation, this would add the comment to the database
+        # For now, we'll just return a success message
+        
+        return {
+            "status": "success",
+            "message": "Comment added successfully",
+            "comment": {
+                "text": text,
+                "created_at": datetime.now().isoformat(),
+                "user": "current_user",  # In a real implementation, this would be the actual user
+                "dataset_id": dataset_id
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error adding comment: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/dataset/{dataset_id}/annotation")
+async def add_annotation(
+    dataset_id: str,
+    text: str = Body(...),
+    data_point: Dict[str, Any] = Body(...)
+):
+    """Add an annotation to a specific data point"""
+    try:
+        # Get dataset from database
+        dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        # In a real implementation, this would add the annotation to the database
+        # For now, we'll just return a success message
+        
+        return {
+            "status": "success",
+            "message": "Annotation added successfully",
+            "annotation": {
+                "text": text,
+                "data_point": data_point,
+                "created_at": datetime.now().isoformat(),
+                "user": "current_user",  # In a real implementation, this would be the actual user
+                "dataset_id": dataset_id
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error adding annotation: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))

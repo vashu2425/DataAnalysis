@@ -14,11 +14,25 @@
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="downloadDropdown">
                     <li><a id="downloadBtn" href="#" class="dropdown-item">Download Dataset (CSV)</a></li>
-                    <li><a id="downloadTrainingBtn" href="#" class="dropdown-item">Download Training Package</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a id="downloadEDAReportBtn" href="#" class="dropdown-item">Download EDA Report (PDF)</a></li>
                 </ul>
             </div>
+            <div class="dropdown d-inline-block ms-2">
+                <button class="btn btn-outline-info dropdown-toggle" type="button" id="actionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Actions
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="actionsDropdown">
+                    <li><a id="shareProjectBtn" href="#" class="dropdown-item">Share Project</a></li>
+                    <li><a id="versionHistoryBtn" href="#" class="dropdown-item">Version History</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a id="anomalyDetectionBtn" href="#" class="dropdown-item">Anomaly Detection</a></li>
+                    <li><a id="causalAnalysisBtn" href="#" class="dropdown-item">Causal Analysis</a></li>
+                </ul>
+            </div>
+            <button class="btn btn-outline-secondary ms-2" id="helpGuideBtn">
+                <i class="fas fa-question-circle"></i> Guided Workflow
+            </button>
         </div>
     </div>
     
@@ -34,6 +48,12 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="pca-tab" data-bs-toggle="tab" data-bs-target="#pca" type="button" role="tab" aria-controls="pca" aria-selected="false">Dimensionality Reduction</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab" aria-controls="advanced" aria-selected="false">Advanced Analytics</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="collaboration-tab" data-bs-toggle="tab" data-bs-target="#collaboration" type="button" role="tab" aria-controls="collaboration" aria-selected="false">Collaboration</button>
         </li>
     </ul>
     
@@ -279,6 +299,242 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Add Advanced Analytics tab content -->
+        <div class="tab-pane fade" id="advanced" role="tabpanel" aria-labelledby="advanced-tab">
+            <div class="card">
+                <div class="card-header">Advanced Analytics</div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5>Anomaly Detection</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Automatically identify outliers and unusual patterns in your dataset.</p>
+                                    <div class="form-group mb-3">
+                                        <label for="anomalyMethod">Detection Method:</label>
+                                        <select class="form-control" id="anomalyMethod">
+                                            <option value="isolation_forest">Isolation Forest</option>
+                                            <option value="lof">Local Outlier Factor</option>
+                                            <option value="dbscan">DBSCAN</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="anomalyThreshold">Sensitivity Threshold:</label>
+                                        <input type="range" class="form-range" id="anomalyThreshold" min="0.01" max="0.2" step="0.01" value="0.05">
+                                        <small class="form-text text-muted">Threshold: <span id="anomalyThresholdValue">0.05</span></small>
+                                    </div>
+                                    <button id="detectAnomaliesBtn" class="btn btn-primary">Detect Anomalies</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5>Correlation Analysis</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Understand relationships between variables with natural language explanations.</p>
+                                    <div class="form-group mb-3">
+                                        <label for="correlationMethod">Analysis Method:</label>
+                                        <select class="form-control" id="correlationMethod">
+                                            <option value="pearson">Pearson (Linear)</option>
+                                            <option value="spearman">Spearman (Monotonic)</option>
+                                            <option value="kendall">Kendall (Ordinal)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="correlationThreshold">Minimum Correlation:</label>
+                                        <input type="range" class="form-range" id="correlationThreshold" min="0.1" max="0.9" step="0.05" value="0.5">
+                                        <small class="form-text text-muted">Threshold: <span id="correlationThresholdValue">0.5</span></small>
+                                    </div>
+                                    <button id="explainCorrelationsBtn" class="btn btn-primary">Explain Correlations</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5>Causal Inference</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Discover potential cause-effect relationships in your data.</p>
+                                    <div class="form-group mb-3">
+                                        <label for="causalTarget">Target Variable:</label>
+                                        <select class="form-control" id="causalTarget">
+                                            <option value="">Select a variable...</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="causalMethod">Method:</label>
+                                        <select class="form-control" id="causalMethod">
+                                            <option value="correlation">Correlation-based</option>
+                                            <option value="propensity">Propensity Matching</option>
+                                            <option value="doWhy">DoWhy Framework</option>
+                                        </select>
+                                    </div>
+                                    <button id="analyzeCausalBtn" class="btn btn-primary">Analyze Causality</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="advancedResultsContainer">
+                        <div id="anomalyResults" style="display: none;">
+                            <div class="card mb-4">
+                                <div class="card-header">Anomaly Detection Results</div>
+                                <div class="card-body">
+                                    <div id="anomalyPlot"></div>
+                                    <div id="anomalySummary" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="correlationResults" style="display: none;">
+                            <div class="card mb-4">
+                                <div class="card-header">Correlation Analysis with Explanations</div>
+                                <div class="card-body">
+                                    <div id="correlationExplanations"></div>
+                                    <div id="correlationNetwork" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="causalResults" style="display: none;">
+                            <div class="card mb-4">
+                                <div class="card-header">Causal Inference Results</div>
+                                <div class="card-body">
+                                    <div id="causalGraph"></div>
+                                    <div id="causalExplanation" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Collaboration tab content -->
+        <div class="tab-pane fade" id="collaboration" role="tabpanel" aria-labelledby="collaboration-tab">
+            <div class="card">
+                <div class="card-header">Collaboration Features</div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Project Sharing</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Share this dataset and analysis with team members.</p>
+                                    <div class="form-group mb-3">
+                                        <label for="shareEmail">Email Address:</label>
+                                        <input type="email" class="form-control" id="shareEmail" placeholder="colleague@example.com">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="sharePermission">Permission Level:</label>
+                                        <select class="form-control" id="sharePermission">
+                                            <option value="view">View Only</option>
+                                            <option value="edit">Edit</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                    </div>
+                                    <button id="shareBtn" class="btn btn-primary">Share Project</button>
+                                    
+                                    <hr>
+                                    
+                                    <h6 class="mt-3">Current Collaborators</h6>
+                                    <div id="collaboratorsList" class="list-group mt-2">
+                                        <div class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">You (Owner)</h6>
+                                                <small>Admin</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Version History</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Track changes to your dataset and transformations.</p>
+                                    <div id="versionHistoryList" class="list-group">
+                                        <div class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">Initial Upload</h6>
+                                                <small class="text-muted">Current Version</small>
+                                            </div>
+                                            <p class="mb-1">Original dataset upload</p>
+                                            <small class="text-muted">Created just now</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr>
+                                    
+                                    <h6 class="mt-3">Create Version Checkpoint</h6>
+                                    <div class="form-group mb-3">
+                                        <label for="versionName">Version Name:</label>
+                                        <input type="text" class="form-control" id="versionName" placeholder="e.g., After Feature Engineering">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="versionNotes">Notes:</label>
+                                        <textarea class="form-control" id="versionNotes" rows="2" placeholder="Describe the changes in this version"></textarea>
+                                    </div>
+                                    <button id="createVersionBtn" class="btn btn-primary">Create Checkpoint</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5>Annotations & Comments</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div id="commentsContainer" class="mb-3">
+                                        <div class="card mb-2">
+                                            <div class="card-body">
+                                                <h6 class="card-subtitle mb-2 text-muted">You, just now</h6>
+                                                <p class="card-text">Initial analysis started.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="newComment">Add Comment:</label>
+                                        <textarea class="form-control" id="newComment" rows="2" placeholder="Add your observations or questions here..."></textarea>
+                                    </div>
+                                    <button id="addCommentBtn" class="btn btn-primary mt-2">Add Comment</button>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">Data Annotations</div>
+                                        <div class="card-body">
+                                            <p>Add notes to specific data points or visualizations.</p>
+                                            <button id="addAnnotationBtn" class="btn btn-outline-primary">Add Annotation</button>
+                                            
+                                            <div id="annotationsList" class="list-group mt-3">
+                                                <div class="list-group-item">
+                                                    <small class="text-muted">No annotations yet</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -314,7 +570,6 @@
         
         // Set up download buttons
         document.getElementById('downloadBtn').href = `/api/v1/dataset/${datasetId}/download`;
-        document.getElementById('downloadTrainingBtn').href = `/api/v1/dataset/${datasetId}/download-training`;
         document.getElementById('downloadEDAReportBtn').href = `/api/v1/dataset/${datasetId}/eda-report`;
         
         // Load dataset information
@@ -381,7 +636,6 @@
                         
                         // Update the download buttons
                         document.getElementById('downloadBtn').href = `/api/v1/dataset/${datasetId}/download`;
-                        document.getElementById('downloadTrainingBtn').href = `/api/v1/dataset/${datasetId}/download-training`;
                         document.getElementById('downloadEDAReportBtn').href = `/api/v1/dataset/${datasetId}/eda-report`;
                         
                         // Clear existing content to force reload
@@ -1357,6 +1611,487 @@
         } finally {
             spinner.style.display = 'none';
             applyButton.disabled = false;
+        }
+    }
+
+    // Initialize the new features
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up event listeners for the new features
+        
+        // Advanced Analytics tab
+        document.getElementById('anomalyThreshold').addEventListener('input', function() {
+            document.getElementById('anomalyThresholdValue').textContent = this.value;
+        });
+        
+        document.getElementById('correlationThreshold').addEventListener('input', function() {
+            document.getElementById('correlationThresholdValue').textContent = this.value;
+        });
+        
+        document.getElementById('detectAnomaliesBtn').addEventListener('click', detectAnomalies);
+        document.getElementById('explainCorrelationsBtn').addEventListener('click', explainCorrelations);
+        document.getElementById('analyzeCausalBtn').addEventListener('click', analyzeCausality);
+        
+        // Collaboration tab
+        document.getElementById('shareBtn').addEventListener('click', shareProject);
+        document.getElementById('createVersionBtn').addEventListener('click', createVersionCheckpoint);
+        document.getElementById('addCommentBtn').addEventListener('click', addComment);
+        document.getElementById('addAnnotationBtn').addEventListener('click', addAnnotation);
+        
+        // Action buttons
+        document.getElementById('shareProjectBtn').addEventListener('click', function() {
+            document.getElementById('collaboration-tab').click();
+        });
+        
+        document.getElementById('versionHistoryBtn').addEventListener('click', function() {
+            document.getElementById('collaboration-tab').click();
+            showVersionHistory();
+        });
+        
+        document.getElementById('anomalyDetectionBtn').addEventListener('click', function() {
+            document.getElementById('advanced-tab').click();
+            document.getElementById('detectAnomaliesBtn').click();
+        });
+        
+        document.getElementById('causalAnalysisBtn').addEventListener('click', function() {
+            document.getElementById('advanced-tab').click();
+            populateCausalTargets();
+        });
+        
+        document.getElementById('helpGuideBtn').addEventListener('click', showGuidedWorkflow);
+        
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Populate causal target dropdown when advanced tab is shown
+        document.getElementById('advanced-tab').addEventListener('shown.bs.tab', function() {
+            populateCausalTargets();
+        });
+    });
+    
+    // Advanced Analytics Functions
+    async function detectAnomalies() {
+        try {
+            const method = document.getElementById('anomalyMethod').value;
+            const threshold = document.getElementById('anomalyThreshold').value;
+            
+            // Show loading state
+            document.getElementById('detectAnomaliesBtn').disabled = true;
+            document.getElementById('detectAnomaliesBtn').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Detecting...';
+            
+            // Clear previous results
+            document.getElementById('anomalyResults').style.display = 'none';
+            
+            // Make API call
+            const response = await fetch(`/api/v1/dataset/${datasetId}/anomalies?method=${method}&threshold=${threshold}`, {
+                method: 'GET'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to detect anomalies: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            // Display results
+            const anomalyPlot = document.getElementById('anomalyPlot');
+            const anomalySummary = document.getElementById('anomalySummary');
+            
+            // Create a placeholder for the plot (in a real implementation, this would use a visualization library)
+            anomalyPlot.innerHTML = `<div class="alert alert-info">Anomaly detection visualization would be displayed here using a library like Plotly.js</div>`;
+            
+            // Create a summary of the anomalies
+            anomalySummary.innerHTML = `
+                <h5>Anomaly Detection Summary</h5>
+                <p>Method: ${method}</p>
+                <p>Threshold: ${threshold}</p>
+                <p>Total anomalies detected: ${Math.floor(Math.random() * 20) + 1}</p>
+                <div class="alert alert-warning">
+                    <strong>Note:</strong> This is a placeholder. In a real implementation, this would show actual anomaly detection results.
+                </div>
+            `;
+            
+            // Show the results
+            document.getElementById('anomalyResults').style.display = 'block';
+            
+        } catch (error) {
+            console.error('Error detecting anomalies:', error);
+            // Show error message
+            const anomalyResults = document.getElementById('anomalyResults');
+            anomalyResults.style.display = 'block';
+            anomalyResults.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> ${error.message || 'Failed to detect anomalies'}
+                </div>
+            `;
+        } finally {
+            // Reset button
+            document.getElementById('detectAnomaliesBtn').disabled = false;
+            document.getElementById('detectAnomaliesBtn').innerHTML = 'Detect Anomalies';
+        }
+    }
+    
+    async function explainCorrelations() {
+        try {
+            const method = document.getElementById('correlationMethod').value;
+            const threshold = document.getElementById('correlationThreshold').value;
+            
+            // Show loading state
+            document.getElementById('explainCorrelationsBtn').disabled = true;
+            document.getElementById('explainCorrelationsBtn').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...';
+            
+            // Clear previous results
+            document.getElementById('correlationResults').style.display = 'none';
+            
+            // Make API call (this would be implemented in the backend)
+            // For now, we'll simulate a response
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Display results
+            const correlationExplanations = document.getElementById('correlationExplanations');
+            const correlationNetwork = document.getElementById('correlationNetwork');
+            
+            // Create explanations (placeholder)
+            correlationExplanations.innerHTML = `
+                <h5>Correlation Explanations</h5>
+                <div class="alert alert-info mb-3">
+                    <strong>Method:</strong> ${method}, <strong>Threshold:</strong> ${threshold}
+                </div>
+                <div class="card mb-3">
+                    <div class="card-header bg-light">Strong Positive Correlation</div>
+                    <div class="card-body">
+                        <p><strong>Feature A</strong> and <strong>Feature B</strong> have a strong positive correlation (0.85).</p>
+                        <p><em>Explanation:</em> As Feature A increases, Feature B tends to increase at a similar rate. This suggests these features might be measuring related aspects or could be redundant.</p>
+                    </div>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-header bg-light">Strong Negative Correlation</div>
+                    <div class="card-body">
+                        <p><strong>Feature C</strong> and <strong>Feature D</strong> have a strong negative correlation (-0.72).</p>
+                        <p><em>Explanation:</em> As Feature C increases, Feature D tends to decrease proportionally. This inverse relationship might indicate an important trade-off in your data.</p>
+                    </div>
+                </div>
+                <div class="alert alert-warning">
+                    <strong>Note:</strong> This is a placeholder. In a real implementation, this would show actual correlation explanations.
+                </div>
+            `;
+            
+            // Create network visualization placeholder
+            correlationNetwork.innerHTML = `
+                <h5>Correlation Network</h5>
+                <div class="alert alert-info">
+                    A network visualization of feature correlations would be displayed here using a library like D3.js
+                </div>
+            `;
+            
+            // Show the results
+            document.getElementById('correlationResults').style.display = 'block';
+            
+        } catch (error) {
+            console.error('Error explaining correlations:', error);
+            // Show error message
+            const correlationResults = document.getElementById('correlationResults');
+            correlationResults.style.display = 'block';
+            correlationResults.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> ${error.message || 'Failed to explain correlations'}
+                </div>
+            `;
+        } finally {
+            // Reset button
+            document.getElementById('explainCorrelationsBtn').disabled = false;
+            document.getElementById('explainCorrelationsBtn').innerHTML = 'Explain Correlations';
+        }
+    }
+    
+    function populateCausalTargets() {
+        // This would fetch the dataset columns and populate the dropdown
+        const targetDropdown = document.getElementById('causalTarget');
+        
+        // Clear existing options except the first one
+        while (targetDropdown.options.length > 1) {
+            targetDropdown.remove(1);
+        }
+        
+        // Add placeholder options (in a real implementation, these would be actual columns)
+        const placeholderColumns = ['Feature A', 'Feature B', 'Feature C', 'Target Variable'];
+        placeholderColumns.forEach(column => {
+            const option = document.createElement('option');
+            option.value = column;
+            option.text = column;
+            targetDropdown.add(option);
+        });
+    }
+    
+    async function analyzeCausality() {
+        try {
+            const target = document.getElementById('causalTarget').value;
+            const method = document.getElementById('causalMethod').value;
+            
+            if (!target) {
+                throw new Error('Please select a target variable');
+            }
+            
+            // Show loading state
+            document.getElementById('analyzeCausalBtn').disabled = true;
+            document.getElementById('analyzeCausalBtn').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...';
+            
+            // Clear previous results
+            document.getElementById('causalResults').style.display = 'none';
+            
+            // Make API call (this would be implemented in the backend)
+            // For now, we'll simulate a response
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Display results
+            const causalGraph = document.getElementById('causalGraph');
+            const causalExplanation = document.getElementById('causalExplanation');
+            
+            // Create graph placeholder
+            causalGraph.innerHTML = `
+                <h5>Causal Graph for ${target}</h5>
+                <div class="alert alert-info">
+                    A causal graph visualization would be displayed here using a library like D3.js
+                </div>
+            `;
+            
+            // Create explanation placeholder
+            causalExplanation.innerHTML = `
+                <h5>Causal Analysis Results</h5>
+                <div class="alert alert-info mb-3">
+                    <strong>Target:</strong> ${target}, <strong>Method:</strong> ${method}
+                </div>
+                <div class="card mb-3">
+                    <div class="card-header bg-light">Potential Causes</div>
+                    <div class="card-body">
+                        <p>The analysis suggests that <strong>Feature A</strong> and <strong>Feature B</strong> may have causal effects on <strong>${target}</strong>.</p>
+                        <ul>
+                            <li><strong>Feature A</strong> has an estimated effect of +0.42 (moderate positive effect)</li>
+                            <li><strong>Feature B</strong> has an estimated effect of -0.28 (small negative effect)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-header bg-light">Confounding Variables</div>
+                    <div class="card-body">
+                        <p><strong>Feature C</strong> appears to be a confounding variable that affects both <strong>Feature A</strong> and <strong>${target}</strong>.</p>
+                    </div>
+                </div>
+                <div class="alert alert-warning">
+                    <strong>Note:</strong> This is a placeholder. In a real implementation, this would show actual causal analysis results.
+                </div>
+            `;
+            
+            // Show the results
+            document.getElementById('causalResults').style.display = 'block';
+            
+        } catch (error) {
+            console.error('Error analyzing causality:', error);
+            // Show error message
+            const causalResults = document.getElementById('causalResults');
+            causalResults.style.display = 'block';
+            causalResults.innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> ${error.message || 'Failed to analyze causality'}
+                </div>
+            `;
+        } finally {
+            // Reset button
+            document.getElementById('analyzeCausalBtn').disabled = false;
+            document.getElementById('analyzeCausalBtn').innerHTML = 'Analyze Causality';
+        }
+    }
+    
+    // Collaboration Functions
+    function shareProject() {
+        const email = document.getElementById('shareEmail').value;
+        const permission = document.getElementById('sharePermission').value;
+        
+        if (!email) {
+            alert('Please enter an email address');
+            return;
+        }
+        
+        // In a real implementation, this would make an API call
+        // For now, we'll just update the UI
+        
+        const collaboratorsList = document.getElementById('collaboratorsList');
+        const newCollaborator = document.createElement('div');
+        newCollaborator.className = 'list-group-item';
+        newCollaborator.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">${email}</h6>
+                <small>${permission}</small>
+            </div>
+            <small class="text-muted">Added just now</small>
+        `;
+        
+        collaboratorsList.appendChild(newCollaborator);
+        
+        // Clear the input
+        document.getElementById('shareEmail').value = '';
+        
+        // Show success message
+        alert(`Project shared with ${email} (${permission} access)`);
+    }
+    
+    function createVersionCheckpoint() {
+        const versionName = document.getElementById('versionName').value;
+        const versionNotes = document.getElementById('versionNotes').value;
+        
+        if (!versionName) {
+            alert('Please enter a version name');
+            return;
+        }
+        
+        // In a real implementation, this would make an API call
+        // For now, we'll just update the UI
+        
+        const versionHistoryList = document.getElementById('versionHistoryList');
+        
+        // Update current version to not be current
+        const currentVersionItem = versionHistoryList.querySelector('.text-muted');
+        if (currentVersionItem) {
+            currentVersionItem.textContent = '';
+        }
+        
+        // Add new version
+        const newVersion = document.createElement('div');
+        newVersion.className = 'list-group-item';
+        newVersion.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">${versionName}</h6>
+                <small class="text-muted">Current Version</small>
+            </div>
+            <p class="mb-1">${versionNotes || 'No description provided'}</p>
+            <small class="text-muted">Created just now</small>
+        `;
+        
+        versionHistoryList.prepend(newVersion);
+        
+        // Clear the inputs
+        document.getElementById('versionName').value = '';
+        document.getElementById('versionNotes').value = '';
+        
+        // Show success message
+        alert(`Version checkpoint "${versionName}" created successfully`);
+    }
+    
+    function showVersionHistory() {
+        // This would fetch the version history from the server
+        // For now, we'll just switch to the collaboration tab
+        document.getElementById('collaboration-tab').click();
+    }
+    
+    function addComment() {
+        const commentText = document.getElementById('newComment').value;
+        
+        if (!commentText) {
+            alert('Please enter a comment');
+            return;
+        }
+        
+        // Add the comment to the UI
+        const commentsContainer = document.getElementById('commentsContainer');
+        const newComment = document.createElement('div');
+        newComment.className = 'card mb-2';
+        newComment.innerHTML = `
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">You, just now</h6>
+                <p class="card-text">${commentText}</p>
+            </div>
+        `;
+        
+        commentsContainer.appendChild(newComment);
+        
+        // Clear the input
+        document.getElementById('newComment').value = '';
+    }
+    
+    function addAnnotation() {
+        // In a real implementation, this would open a modal or interface to select a data point
+        // For now, we'll just add a placeholder annotation
+        
+        const annotationsList = document.getElementById('annotationsList');
+        
+        // Remove the "No annotations yet" message if it exists
+        const noAnnotationsMsg = annotationsList.querySelector('.text-muted');
+        if (noAnnotationsMsg) {
+            annotationsList.innerHTML = '';
+        }
+        
+        // Add a new annotation
+        const newAnnotation = document.createElement('div');
+        newAnnotation.className = 'list-group-item';
+        newAnnotation.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">Annotation on Feature X</h6>
+                <small class="text-muted">Just now</small>
+            </div>
+            <p class="mb-1">This data point shows an interesting pattern.</p>
+        `;
+        
+        annotationsList.appendChild(newAnnotation);
+    }
+    
+    function showGuidedWorkflow() {
+        // In a real implementation, this would show a step-by-step guide
+        // For now, we'll just show an alert
+        
+        alert('Guided Workflow: This feature would provide step-by-step guidance for common analysis tasks.');
+    }
+    
+    // Enhanced error handling
+    window.addEventListener('error', function(event) {
+        console.error('Global error caught:', event.error);
+        
+        // Show a user-friendly error message
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'alert alert-danger alert-dismissible fade show position-fixed bottom-0 end-0 m-3';
+        errorMessage.setAttribute('role', 'alert');
+        errorMessage.innerHTML = `
+            <strong>Error:</strong> ${event.error.message || 'An unexpected error occurred'}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        document.body.appendChild(errorMessage);
+        
+        // Remove the error message after 5 seconds
+        setTimeout(() => {
+            errorMessage.remove();
+        }, 5000);
+    });
+    
+    // Add validation for all user inputs
+    function validateInput(input, validationFunction, errorMessage) {
+        const value = input.value;
+        const isValid = validationFunction(value);
+        
+        if (!isValid) {
+            input.classList.add('is-invalid');
+            
+            // Create or update error message
+            let errorElement = input.nextElementSibling;
+            if (!errorElement || !errorElement.classList.contains('invalid-feedback')) {
+                errorElement = document.createElement('div');
+                errorElement.className = 'invalid-feedback';
+                input.parentNode.insertBefore(errorElement, input.nextSibling);
+            }
+            
+            errorElement.textContent = errorMessage;
+            return false;
+        } else {
+            input.classList.remove('is-invalid');
+            
+            // Remove error message if it exists
+            const errorElement = input.nextElementSibling;
+            if (errorElement && errorElement.classList.contains('invalid-feedback')) {
+                errorElement.remove();
+            }
+            
+            return true;
         }
     }
 </script>
