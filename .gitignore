@@ -145,3 +145,38 @@ celerybeat.pid
 
 # SageMath
 *.sage.py
+
+# Additional patterns
+# Backup files
+*~
+*.bak
+*.swp
+*.orig
+
+# Virtual Studio Code
+.history/
+*.code-workspace
+
+# Python virtual environment
+.python-version
+.conda/
+anaconda/
+
+# Jupyter
+.jupyter/
+jupyter_notebook_config.py
+jupyter_notebook_config.json
+
+# Data files
+*.csv
+*.dat
+*.pkl
+*.npy
+*.h5
+*.hdf5
+!requirements.txt  # Keep requirements.txt even if it matches any above patterns
+
+# System files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
