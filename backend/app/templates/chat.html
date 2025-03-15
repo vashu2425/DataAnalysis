@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Chat with Your Data - Data Analysis Platform{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2>Chat with Dataset: {{ dataset.name }}</h2>
+            <div>
+                <a href="/analysis/{{ dataset._id }}" class="btn btn-primary me-2">View Analysis</a>
+                <a href="/" class="btn btn-outline-primary">Back to Home</a>
+            </div>
+        </div>
+        <p>Rows: {{ dataset.row_count }} | Columns: {{ dataset.columns|length }}</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="card-title mb-0">Dataset Overview</h4>
+            </div>
+            <div class="card-body">
+                <h5>Column Types</h5>
+                <div id="columnTypes">
+                    <div id="numericColumns" class="mb-3">
+                        <h6>Numeric Columns:</h6>
+                        <ul class="list-group">
+                            <li class="list-group-item">Loading...</li>
+                        </ul>
+                    </div>
+                    <div id="categoricalColumns">
+                        <h6>Categorical Columns:</h6>
+                        <ul class="list-group">
+                            <li class="list-group-item">Loading...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h4 class="card-title mb-0">Sample Questions</h4>
+            </div>
+            <div class="card-body">
+                <div class="list-group" id="sampleQuestions">
+                    <button class="list-group-item list-group-item-action sample-question">
+                        What are the key insights from this dataset?
+                    </button>
+                    <button class="list-group-item list-group-item-action sample-question">
+                        Which features are most important for analysis?
+                    </button>
+                    <button class="list-group-item list-group-item-action sample-question">
+                        Are there any data quality issues I should address?
+                    </button>
+                    <button class="list-group-item list-group-item-action sample-question">
+                        What kind of visualizations would be helpful for this dataset?
+                    </button>
+                    <button class="list-group-item list-group-item-action sample-question">
+                        Suggest some feature engineering steps for this dataset.
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="card-title mb-0">Chat with Your Data</h4>
+            </div>
+            <div class="card-body">
+                <div id="chatMessages" class="mb-4" style="height: 400px; overflow-y: auto;">
+                    <div class="alert alert-info">
+                        <p><strong>AI Assistant:</strong> Hello! I'm your AI data assistant. I can help you understand your dataset and provide insights. Ask me anything about your data!</p>
+                        <p class="small text-muted mb-0">Powered by Local AI</p>
+                    </div>
+                </div>
+                
+                <form id="chatForm">
+                    <div class="input-group">
+                        <input type="text" id="userQuestion" class="form-control" placeholder="Ask a question about your data...">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i> Send
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dataset = {{ dataset|tojson }};
+    
+    // Populate column types
+    populateColumnTypes(dataset);
+    
+    // Handle sample question clicks
+    document.querySelectorAll('.sample-question').forEach(button => {
+        button.addEventListener('click', function() {
+            document.getElementById('userQuestion').value = this.textContent.trim();
+            document.getElementById('userQuestion').focus();
+        });
+    });
+    
+    // Handle chat form submission
+    document.getElementById('chatForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const questionInput = document.getElementById('userQuestion');
+        const question = questionInput.value.trim();
+        
+        if (question) {
+            addUserMessage(question);
+            generateResponse(dataset._id, question);
+            questionInput.value = '';
+        }
+    });
+});
+
+function populateColumnTypes(dataset) {
+    // Populate column types
+    const dtypes = dataset.metadata.dtypes;
+    let numericCols = [];
+    let categoricalCols = [];
+    
+    for (const col in dtypes) {
+        if (dtypes[col].includes('int') || dtypes[col].includes('float')) {
+            numericCols.push(col);
+        } else {
+            categoricalCols.push(col);
+        }
+    }
+    
+    const numericColumnsEl = document.querySelector('#numericColumns ul');
+    const categoricalColumnsEl = document.querySelector('#categoricalColumns ul');
+    
+    numericColumnsEl.innerHTML = numericCols.length === 0 ? 
+        '<li class="list-group-item">No numeric columns</li>' : 
+        numericCols.map(col => `<li class="list-group-item small">${col}</li>`).join('');
+    
+    categoricalColumnsEl.innerHTML = categoricalCols.length === 0 ? 
+        '<li class="list-group-item">No categorical columns</li>' : 
+        categoricalCols.map(col => `<li class="list-group-item small">${col}</li>`).join('');
+}
+
+function addUserMessage(message) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'alert alert-primary mb-2';
+    messageDiv.innerHTML = `<strong>You:</strong> ${message}`;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function addAIMessage(message, isError = false) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = isError ? 'alert alert-danger mb-2' : 'alert alert-secondary mb-2';
+    messageDiv.innerHTML = `<strong>AI Assistant:</strong> ${message}`;
+    
+    if (!isError) {
+        messageDiv.innerHTML += `<p class="small text-muted mb-0 mt-2">Powered by Local AI</p>`;
+    }
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function generateResponse(datasetId, question) {
+    // Show thinking message
+    const thinkingMessage = addThinkingMessage();
+    
+    try {
+        // Call the API
+        const response = await fetch(`/api/v1/dataset/${datasetId}/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ question: question })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Replace thinking message with actual response
+        replaceThinkingMessage(thinkingMessage, data.response);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        // Replace thinking message with error
+        replaceThinkingMessage(thinkingMessage, `Sorry, I encountered an error: ${error.message}`, true);
+    }
+}
+
+function addThinkingMessage() {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'alert alert-secondary mb-2 thinking-message';
+    messageDiv.innerHTML = `
+        <strong>AI Assistant:</strong> 
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Thinking...</span>
+            </div>
+            <span>Analyzing your data...</span>
+        </div>
+    `;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return messageDiv;
+}
+
+function replaceThinkingMessage(messageElement, text, isError = false) {
+    if (isError) {
+        messageElement.className = 'alert alert-danger mb-2';
+        messageElement.innerHTML = `<strong>AI Assistant:</strong> ${text}`;
+    } else {
+        messageElement.className = 'alert alert-secondary mb-2';
+        messageElement.innerHTML = `
+            <strong>AI Assistant:</strong> ${text}
+            <p class="small text-muted mb-0 mt-2">Powered by Local AI</p>
+        `;
+    }
+    
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+.stApp {
+    font-family: 'Inter', sans-serif;
+}
+
+.code {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.stButton>button {
+    background-color: #4B8BBE;
+    color: white;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    border: none;
+}
+
+.stButton>button:hover {
+    background-color: #306998;
+}
+
+.sidebar .sidebar-content {
+    background-color: #FFFFFF;
+}
+
+.block-container {
+    padding: 16px;
+}
+
+.element-container {
+    margin-bottom: 16px;
+}
+
+/* Custom styling for the two-column layout */
+.main-content {
+    display: flex;
+    gap: 16px;
+}
+
+.column {
+    flex: 1;
+    padding: 16px;
+    background: #FFFFFF;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+
+/* Example custom styling */
+body {
+    font-family: "Open Sans", sans-serif;
+  }
+  h1, h2, h3 {
+    color: #4B8BBE !important;
+  }
+  

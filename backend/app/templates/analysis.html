@@ -1,0 +1,1236 @@
+{% extends "base.html" %}
+
+{% block title %}Dataset Analysis - Data Analysis Platform{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 id="datasetName">Dataset Analysis</h2>
+        <div>
+            <a href="/" class="btn btn-outline-primary me-2">Back to Home</a>
+            <a id="downloadBtn" href="#" class="btn btn-outline-success">Download Dataset</a>
+        </div>
+    </div>
+    
+    <ul class="nav nav-tabs" id="analysisTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">Overview</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="eda-tab" data-bs-toggle="tab" data-bs-target="#eda" type="button" role="tab" aria-controls="eda" aria-selected="false">Exploratory Analysis</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="feature-engineering-tab" data-bs-toggle="tab" data-bs-target="#feature-engineering" type="button" role="tab" aria-controls="feature-engineering" aria-selected="false">Feature Engineering</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pca-tab" data-bs-toggle="tab" data-bs-target="#pca" type="button" role="tab" aria-controls="pca" aria-selected="false">Dimensionality Reduction</button>
+        </li>
+    </ul>
+    
+    <div class="tab-content mt-3" id="analysisTabContent">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+            <div id="loadingSpinner" class="text-center my-4">
+                <div class="spinner-border" role="status">
+                    <span class="sr-only">Loading dataset info...</span>
+                </div>
+                <p>Loading dataset information...</p>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Dataset Information</div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tbody id="datasetInfo">
+                                    <!-- Dataset info will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">Column Types</div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Column</th>
+                                        <th>Type</th>
+                                        <th>Missing</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="columnTypes">
+                                    <!-- Column types will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">Numeric Summary</div>
+                        <div class="card-body">
+                            <div id="numericSummary">
+                                <!-- Numeric summary will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- EDA Tab -->
+        <div class="tab-pane fade" id="eda" role="tabpanel" aria-labelledby="eda-tab">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Exploratory Data Analysis</h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" id="refreshEDABtn">Refresh Analysis</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="downloadEDABtn">Download Report</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="edaSpinner" class="text-center" style="display: none;">
+                        <div class="spinner-border" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <p>Generating exploratory analysis...</p>
+                    </div>
+                    <div id="edaError" class="alert alert-danger" style="display: none;"></div>
+                    
+                    <div id="edaContent">
+                        <!-- EDA content will be populated here -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">Correlation Matrix</div>
+                                    <div class="card-body">
+                                        <div id="correlationMatrix"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">Data Distribution</div>
+                                    <div class="card-body">
+                                        <div id="distributionPlots"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">Feature Relationships</div>
+                                    <div class="card-body">
+                                        <div id="featureRelationships"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">Missing Values</div>
+                                    <div class="card-body">
+                                        <div id="missingValues"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">Outlier Detection</div>
+                                    <div class="card-body">
+                                        <div id="outlierDetection"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Feature Engineering Tab -->
+        <div class="tab-pane fade" id="feature-engineering" role="tabpanel" aria-labelledby="feature-engineering-tab">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">AI-Powered Feature Engineering Suggestions</div>
+                        <div class="card-body">
+                            <div id="suggestionsSpinner" class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="sr-only">Loading...</span>
+                                </div>
+                                <p>Generating suggestions...</p>
+                            </div>
+                            <div id="suggestionsError" class="alert alert-danger" style="display: none;"></div>
+                            <div id="suggestionsList" style="display: none;">
+                                <!-- Suggestions will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">Apply Selected Suggestions</div>
+                        <div class="card-body">
+                            <p>Select the feature engineering suggestions you want to apply to your dataset.</p>
+                            
+                            <button id="applyFeaturesBtn" class="btn btn-primary mt-3" disabled>
+                                Apply Selected Features
+                            </button>
+                            
+                            <div id="applySpinner" class="text-center mt-3" style="display: none;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Loading...</span>
+                                </div>
+                                <div class="mt-2 loading-text">Applying transformations...</div>
+                            </div>
+                            
+                            <div id="applySuccess" class="alert alert-success mt-3" style="display: none;">
+                                Transformations applied successfully! <a href="#" id="viewTransformedBtn">View transformed dataset</a>
+                            </div>
+                            
+                            <div id="applyError" class="alert alert-danger mt-3" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add PCA tab content -->
+        <div class="tab-pane fade" id="pca" role="tabpanel" aria-labelledby="pca-tab">
+            <div class="card">
+                <div class="card-header">Principal Component Analysis (PCA)</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">PCA Configuration</div>
+                                <div class="card-body">
+                                    <p>PCA reduces the dimensionality of your dataset while preserving as much variance as possible.</p>
+                                    
+                                    <div class="form-group">
+                                        <label for="pcaComponents">Number of PCA Components:</label>
+                                        <input type="number" class="form-control" id="pcaComponents" min="2" max="10" value="2">
+                                        <small class="form-text text-muted">Choose between 2-10 components</small>
+                                    </div>
+                                    
+                                    <div class="form-group mt-3">
+                                        <label for="varianceThreshold">Variance Threshold:</label>
+                                        <input type="range" class="form-range" id="varianceThreshold" min="0.5" max="0.99" step="0.01" value="0.8">
+                                        <small class="form-text text-muted">Variance to preserve: <span id="varianceValue">0.8</span></small>
+                                    </div>
+                                    
+                                    <button id="applyPCABtn" class="btn btn-primary mt-3">
+                                        Apply PCA
+                                    </button>
+                                    
+                                    <div id="pcaSpinner" class="text-center mt-3" style="display: none;">
+                                        <div class="spinner-border" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                        <p>Applying PCA...</p>
+                                    </div>
+                                    
+                                    <div id="pcaSuccess" class="alert alert-success mt-3" style="display: none;">
+                                        PCA applied successfully! <a href="#" id="viewPCABtn">View transformed dataset</a>
+                                    </div>
+                                    
+                                    <div id="pcaError" class="alert alert-danger mt-3" style="display: none;"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">PCA Results</div>
+                                <div class="card-body">
+                                    <div id="pcaResults">
+                                        <p>Apply PCA to see results here.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Get dataset ID from URL - support both query param and path param
+    const urlParams = new URLSearchParams(window.location.search);
+    let datasetId = urlParams.get('id');
+    
+    // If not found in query params, try to get from path
+    if (!datasetId) {
+        const pathParts = window.location.pathname.split('/');
+        if (pathParts.length > 2) {
+            datasetId = pathParts[pathParts.length - 1];
+        }
+    }
+    
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!datasetId) {
+            alert('No dataset ID provided');
+            window.location.href = '/';
+            return;
+        }
+        
+        // Validate dataset ID format (should be a 24-character hex string)
+        if (!/^[0-9a-f]{24}$/i.test(datasetId)) {
+            alert('Invalid dataset ID format');
+            window.location.href = '/';
+            return;
+        }
+        
+        console.log("Working with dataset ID:", datasetId);
+        
+        // Set up download button
+        document.getElementById('downloadBtn').href = `/api/v1/dataset/${datasetId}/download`;
+        
+        // Load dataset information
+        loadDatasetInfo();
+        
+        // Set up tab change events
+        const tabs = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabs.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function(event) {
+                const targetId = event.target.getAttribute('data-bs-target');
+                if (targetId === '#eda') {
+                    loadEDA();
+                } else if (targetId === '#feature-engineering') {
+                    loadFeatureSuggestions();
+                }
+            });
+        });
+        
+        // Set up apply features button
+        document.getElementById('applyFeaturesBtn').addEventListener('click', applyFeatureSuggestions);
+
+        // Add event listener for variance threshold slider
+        document.getElementById('varianceThreshold').addEventListener('input', function() {
+            document.getElementById('varianceValue').textContent = this.value;
+        });
+
+        // Add event listener for apply PCA button
+        document.getElementById('applyPCABtn').addEventListener('click', applyPCA);
+        
+        // Add event listeners for refresh EDA and download EDA report buttons
+        document.getElementById('refreshEDABtn').addEventListener('click', function() {
+            // Clear existing content to force reload
+            document.getElementById('correlationMatrix').innerHTML = '';
+            document.getElementById('distributionPlots').innerHTML = '';
+            document.getElementById('featureRelationships').innerHTML = '';
+            document.getElementById('missingValues').innerHTML = '';
+            document.getElementById('outlierDetection').innerHTML = '';
+            loadEDA();
+        });
+
+        document.getElementById('downloadEDABtn').addEventListener('click', function() {
+            window.open(`/api/v1/dataset/${datasetId}/eda-report`, '_blank');
+        });
+    });
+    
+    // Load dataset information
+    async function loadDatasetInfo() {
+        try {
+            toggleSpinner('loadingSpinner', true);
+            
+            // Use fetch directly with error handling
+            const response = await fetch(`/api/v1/dataset/${datasetId}`);
+            if (!response.ok) {
+                throw new Error(`Failed to load dataset: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            toggleSpinner('loadingSpinner', false);
+            
+            // Check if data is valid
+            if (!data) {
+                throw new Error("No data returned from the server");
+            }
+            
+            // Set dataset name
+            document.getElementById('datasetName').textContent = data.name || "Unnamed Dataset";
+            
+            // Populate dataset info
+            const infoTable = document.getElementById('datasetInfo');
+            infoTable.innerHTML = `
+                <tr><td>Name</td><td>${data.name || "Unnamed Dataset"}</td></tr>
+                <tr><td>Original Filename</td><td>${data.original_filename || data.name || "Unknown"}</td></tr>
+                <tr><td>Upload Time</td><td>${data.upload_time ? new Date(data.upload_time).toLocaleString() : "Unknown"}</td></tr>
+                <tr><td>Row Count</td><td>${data.row_count || "Unknown"}</td></tr>
+                <tr><td>Column Count</td><td>${data.columns ? data.columns.length : "Unknown"}</td></tr>
+            `;
+            
+            // Populate column types
+            const columnTypesTable = document.getElementById('columnTypes');
+            columnTypesTable.innerHTML = '';
+            
+            if (data.columns && data.metadata && data.metadata.dtypes) {
+                data.columns.forEach(column => {
+                    const dtype = data.metadata.dtypes[column] || "Unknown";
+                    const missing = data.metadata.missing_values && data.metadata.missing_values[column] ? data.metadata.missing_values[column] : 0;
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${column}</td>
+                        <td>${dtype}</td>
+                        <td>${missing}</td>
+                    `;
+                    columnTypesTable.appendChild(row);
+                });
+            } else {
+                columnTypesTable.innerHTML = '<tr><td colspan="3">No column information available</td></tr>';
+            }
+            
+            // Populate numeric summary
+            const numericSummary = document.getElementById('numericSummary');
+            if (data.metadata && data.metadata.numeric_summary && Object.keys(data.metadata.numeric_summary).length > 0) {
+                // Get all statistics
+                const stats = Object.keys(Object.values(data.metadata.numeric_summary)[0]);
+                
+                // Create table
+                let tableHTML = '<table class="table table-sm table-striped">';
+                
+                // Header row
+                tableHTML += '<thead><tr><th>Statistic</th>';
+                Object.keys(data.metadata.numeric_summary).forEach(column => {
+                    tableHTML += `<th>${column}</th>`;
+                });
+                tableHTML += '</tr></thead><tbody>';
+                
+                // Data rows
+                stats.forEach(stat => {
+                    tableHTML += `<tr><td>${stat}</td>`;
+                    Object.keys(data.metadata.numeric_summary).forEach(column => {
+                        const value = data.metadata.numeric_summary[column][stat];
+                        tableHTML += `<td>${formatNumber(value)}</td>`;
+                    });
+                    tableHTML += '</tr>';
+                });
+                
+                tableHTML += '</tbody></table>';
+                numericSummary.innerHTML = tableHTML;
+            } else {
+                numericSummary.innerHTML = '<p>No numeric columns found in this dataset.</p>';
+            }
+            
+        } catch (error) {
+            toggleSpinner('loadingSpinner', false);
+            console.error('Error loading dataset information:', error);
+            document.getElementById('errorMessage').textContent = `Error loading dataset: ${error.message}`;
+            document.getElementById('errorMessage').classList.remove('d-none');
+        }
+    }
+    
+    // Load EDA
+    async function loadEDA() {
+        const correlationMatrix = document.getElementById('correlationMatrix');
+        const distributionPlots = document.getElementById('distributionPlots');
+        const featureRelationships = document.getElementById('featureRelationships');
+        const missingValues = document.getElementById('missingValues');
+        const outlierDetection = document.getElementById('outlierDetection');
+        const spinner = document.getElementById('edaSpinner');
+        
+        // Check if already loaded
+        if (correlationMatrix.innerHTML !== '' && distributionPlots.innerHTML !== '' && featureRelationships.innerHTML !== '' && missingValues.innerHTML !== '' && outlierDetection.innerHTML !== '') return;
+        
+        try {
+            spinner.style.display = 'block';
+            
+            // Use fetch directly with error handling
+            const response = await fetch(`/api/v1/dataset/${datasetId}/eda`);
+            if (!response.ok) {
+                throw new Error(`Failed to load EDA: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            // Check if data is valid before proceeding
+            if (!data) {
+                throw new Error("No data returned from the server");
+            }
+            
+            // Populate EDA content
+            if (data.correlation && Object.keys(data.correlation).length > 0) {
+                const columns = Object.keys(data.correlation);
+                
+                // Create table with improved styling
+                let tableHTML = '<div class="table-responsive"><table class="table table-sm table-bordered correlation-table" style="border-collapse: collapse; width: 100%;">';
+                
+                // Header row with improved styling
+                tableHTML += '<thead class="thead-light"><tr><th style="background-color: #f8f9fa; position: sticky; top: 0; z-index: 1;"></th>';
+                columns.forEach(column => {
+                    tableHTML += `<th style="background-color: #f8f9fa; position: sticky; top: 0; z-index: 1; text-align: center; font-weight: bold; padding: 8px;">${column}</th>`;
+                });
+                tableHTML += '</tr></thead><tbody>';
+                
+                // Data rows with enhanced visualization
+                columns.forEach(row => {
+                    tableHTML += `<tr><td style="background-color: #f8f9fa; font-weight: bold; position: sticky; left: 0; z-index: 1; padding: 8px;">${row}</td>`;
+                    columns.forEach(col => {
+                        const value = data.correlation[row][col];
+                        
+                        // Enhanced color gradient using a professional color scheme
+                        let backgroundColor;
+                        if (value > 0) {
+                            // Blue gradient for positive correlations (more professional shade)
+                            const intensity = Math.abs(value);
+                            backgroundColor = `rgba(65, 105, 225, ${intensity})`;
+                        } else if (value < 0) {
+                            // Red gradient for negative correlations (more professional shade)
+                            const intensity = Math.abs(value);
+                            backgroundColor = `rgba(220, 20, 60, ${intensity})`;
+                        } else {
+                            // Light gray for zero correlation
+                            backgroundColor = 'rgba(240, 240, 240, 1)';
+                        }
+                        
+                        // Improved text color logic for better readability
+                        const textColor = Math.abs(value) > 0.4 ? 'white' : 'black';
+                        
+                        // Format the value with consistent decimal places
+                        const formattedValue = value.toFixed(2);
+                        
+                        // Add cell with enhanced styling
+                        tableHTML += `<td style="background-color: ${backgroundColor}; color: ${textColor}; text-align: center; 
+                                      font-weight: ${Math.abs(value) > 0.7 ? 'bold' : 'normal'}; 
+                                      padding: 10px; width: ${100/columns.length}%;">${formattedValue}</td>`;
+                    });
+                    tableHTML += '</tr>';
+                });
+                
+                tableHTML += '</tbody></table></div>';
+                
+                // Add an enhanced professional color legend
+                tableHTML += `
+                <div class="mt-4 mb-4">
+                    <h6 class="font-weight-bold">Correlation Strength Legend</h6>
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <div style="display: flex; width: 100%; max-width: 500px; height: 25px; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <div style="flex-grow: 1; background: linear-gradient(to right, rgba(220,20,60,1), rgba(220,20,60,0.1), rgba(240,240,240,1))"></div>
+                            <div style="flex-grow: 1; background: linear-gradient(to right, rgba(240,240,240,1), rgba(65,105,225,0.1), rgba(65,105,225,1))"></div>
+                        </div>
+                    </div>
+                    <div style="display: flex; width: 100%; max-width: 500px; justify-content: space-between; margin-top: -10px;">
+                        <span class="badge badge-danger">Strong Negative (-1.0)</span>
+                        <span class="badge badge-light">No Correlation (0.0)</span>
+                        <span class="badge badge-primary">Strong Positive (+1.0)</span>
+                    </div>
+                    <p class="small text-muted mt-2">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>How to interpret:</strong> Values close to +1.0 indicate strong positive correlation (variables increase together), 
+                        while values close to -1.0 indicate strong negative correlation (one variable increases as the other decreases). 
+                        Values near zero suggest little to no linear relationship.
+                    </p>
+                </div>
+                `;
+                
+                correlationMatrix.innerHTML = tableHTML;
+                
+                // Add highlighting for strongest correlations
+                const strongCorrelations = [];
+                columns.forEach(row => {
+                    columns.forEach(col => {
+                        if (row !== col) {
+                            const value = data.correlation[row][col];
+                            if (Math.abs(value) > 0.7) {
+                                strongCorrelations.push({row, col, value});
+                            }
+                        }
+                    });
+                });
+                
+                // Sort by absolute correlation strength
+                strongCorrelations.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+                
+                // Display top correlations if any exist
+                if (strongCorrelations.length > 0) {
+                    let topCorrelationsHTML = `
+                    <div class="card mt-3 mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-star"></i> Notable Correlations</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text small">The following pairs of features show strong correlations:</p>
+                            <ul class="list-group list-group-flush">
+                    `;
+                    
+                    // Show top 5 strongest correlations
+                    strongCorrelations.slice(0, 5).forEach(corr => {
+                        const correlationType = corr.value > 0 ? 
+                            '<span class="badge badge-primary">Positive</span>' : 
+                            '<span class="badge badge-danger">Negative</span>';
+                        
+                        topCorrelationsHTML += `
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><strong>${corr.row}</strong> and <strong>${corr.col}</strong></span>
+                                <span>${correlationType} ${Math.abs(corr.value).toFixed(2)}</span>
+                            </li>
+                        `;
+                    });
+                    
+                    topCorrelationsHTML += `
+                            </ul>
+                        </div>
+                    </div>
+                    `;
+                    
+                    correlationMatrix.innerHTML += topCorrelationsHTML;
+                }
+            } else {
+                if (data.message) {
+                    correlationMatrix.innerHTML = `<div class="alert alert-info">${data.message}</div>`;
+                    
+                    // Show column types if available
+                    if (data.columns && data.dtypes) {
+                        let columnInfo = '<div class="mt-3"><h5>Dataset Columns:</h5><ul class="list-group">';
+                        data.columns.forEach(col => {
+                            columnInfo += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                                            ${col} <span class="badge badge-secondary">${data.dtypes[col]}</span></li>`;
+                        });
+                        columnInfo += '</ul></div>';
+                        correlationMatrix.innerHTML += columnInfo;
+                    }
+                } else {
+                    correlationMatrix.innerHTML = '<div class="alert alert-info">No numeric columns found to calculate correlation.</div>';
+                }
+            }
+            
+            // Render distribution plots using Plotly
+            if (data.numeric_analysis && Object.keys(data.numeric_analysis).length > 0) {
+                distributionPlots.innerHTML = '';
+                
+                Object.keys(data.numeric_analysis).forEach(column => {
+                    const plotId = `dist-plot-${column.replace(/\s+/g, '-')}`;
+                    distributionPlots.innerHTML += `
+                        <div class="card mb-3">
+                            <div class="card-header">${column} Distribution</div>
+                            <div class="card-body">
+                                <div id="${plotId}" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Create histogram using Plotly
+                    setTimeout(() => {
+                        if (data.numeric_analysis[column].histogram) {
+                            const histData = [{
+                                x: data.numeric_analysis[column].histogram.x,
+                                type: 'histogram',
+                                name: column
+                            }];
+                            
+                            const layout = {
+                                title: `Distribution of ${column}`,
+                                xaxis: { title: column },
+                                yaxis: { title: 'Count' },
+                                margin: { l: 50, r: 50, b: 50, t: 50, pad: 4 }
+                            };
+                            
+                            Plotly.newPlot(plotId, histData, layout);
+                        }
+                    }, 100);
+                });
+            } else {
+                distributionPlots.innerHTML = '<div class="alert alert-info">No numeric columns available for distribution plots.</div>';
+            }
+            
+            // Render boxplots for numeric columns
+            if (data.numeric_analysis && Object.keys(data.numeric_analysis).length > 0) {
+                featureRelationships.innerHTML = '';
+                
+                Object.keys(data.numeric_analysis).forEach(column => {
+                    const plotId = `box-plot-${column.replace(/\s+/g, '-')}`;
+                    featureRelationships.innerHTML += `
+                        <div class="card mb-3">
+                            <div class="card-header">${column} Box Plot</div>
+                            <div class="card-body">
+                                <div id="${plotId}" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Create box plot using Plotly
+                    setTimeout(() => {
+                        if (data.numeric_analysis[column].boxplot) {
+                            const boxData = [{
+                                y: data.numeric_analysis[column].boxplot.y,
+                                type: 'box',
+                                name: column
+                            }];
+                            
+                            const layout = {
+                                title: `Box Plot of ${column}`,
+                                yaxis: { title: column },
+                                margin: { l: 50, r: 50, b: 50, t: 50, pad: 4 }
+                            };
+                            
+                            Plotly.newPlot(plotId, boxData, layout);
+                        }
+                    }, 100);
+                });
+            } else {
+                featureRelationships.innerHTML = '<div class="alert alert-info">No numeric columns available for box plots.</div>';
+            }
+            
+            // Render pie charts for categorical columns
+            if (data.categorical_analysis && Object.keys(data.categorical_analysis).length > 0) {
+                missingValues.innerHTML = '<h5>Categorical Data Analysis</h5>';
+                
+                Object.keys(data.categorical_analysis).forEach(column => {
+                    // Skip if the column data is undefined or doesn't have top_values
+                    if (!data.categorical_analysis[column] || !data.categorical_analysis[column].top_values) {
+                        return;
+                    }
+                    
+                    const plotId = `pie-chart-${column.replace(/\s+/g, '-')}`;
+                    missingValues.innerHTML += `
+                        <div class="card mb-3">
+                            <div class="card-header">${column} Value Distribution</div>
+                            <div class="card-body">
+                                <div id="${plotId}" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Create pie chart using Plotly
+                    setTimeout(() => {
+                        if (data.categorical_analysis[column].top_values) {
+                            const pieData = [{
+                                labels: data.categorical_analysis[column].top_values.labels,
+                                values: data.categorical_analysis[column].top_values.values,
+                                type: 'pie',
+                                name: column
+                            }];
+                            
+                            const layout = {
+                                title: `Distribution of ${column}`,
+                                margin: { l: 50, r: 50, b: 50, t: 50, pad: 4 }
+                            };
+                            
+                            Plotly.newPlot(plotId, pieData, layout);
+                        }
+                    }, 100);
+                });
+            } else {
+                missingValues.innerHTML = '<div class="alert alert-info">No categorical columns available for analysis.</div>';
+            }
+            
+            // Display missing values summary
+            if (data.missing_values && Object.keys(data.missing_values).length > 0) {
+                outlierDetection.innerHTML = '<h5>Missing Values Summary</h5>';
+                
+                // Create a bar chart of missing values
+                const plotId = 'missing-values-chart';
+                outlierDetection.innerHTML += `
+                    <div class="card mb-3">
+                        <div class="card-header">Missing Values by Column</div>
+                        <div class="card-body">
+                            <div id="${plotId}" style="height: 400px;"></div>
+                        </div>
+                    </div>
+                `;
+                
+                // Create bar chart using Plotly
+                setTimeout(() => {
+                    const columns = Object.keys(data.missing_values);
+                    const values = columns.map(col => data.missing_values[col]);
+                    
+                    const barData = [{
+                        x: columns,
+                        y: values,
+                        type: 'bar',
+                        name: 'Missing Values'
+                    }];
+                    
+                    const layout = {
+                        title: 'Missing Values by Column',
+                        xaxis: { title: 'Column' },
+                        yaxis: { title: 'Count' },
+                        margin: { l: 50, r: 50, b: 100, t: 50, pad: 4 }
+                    };
+                    
+                    Plotly.newPlot(plotId, barData, layout);
+                }, 100);
+            } else {
+                outlierDetection.innerHTML = '<div class="alert alert-info">No missing values found in the dataset.</div>';
+            }
+        } catch (error) {
+            console.error('Error loading EDA:', error);
+            correlationMatrix.innerHTML = `<div class="alert alert-danger">Failed to load EDA: ${error.message}</div>`;
+        } finally {
+            spinner.style.display = 'none';
+        }
+    }
+    
+    // Load feature engineering suggestions
+    async function loadFeatureSuggestions() {
+        const suggestionsList = document.getElementById('suggestionsList');
+        const spinner = document.getElementById('suggestionsSpinner');
+        const errorElement = document.getElementById('suggestionsError');
+        
+        // Check if already loaded
+        if (suggestionsList.innerHTML !== '' && suggestionsList.style.display !== 'none') return;
+        
+        try {
+            // Reset UI
+            suggestionsList.style.display = 'none';
+            errorElement.style.display = 'none';
+            spinner.style.display = 'block';
+            
+            // Use fetch directly with error handling
+            const response = await fetch(`/api/v1/dataset/${datasetId}/suggestions`);
+            if (!response.ok) {
+                throw new Error(`Failed to load suggestions: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data && data.feature_engineering && data.feature_engineering.length > 0) {
+                // Create suggestions list
+                let suggestionsHTML = '<form id="suggestionsForm">';
+                
+                // Add "Select All" checkbox
+                suggestionsHTML += `
+                    <div class="form-check mb-4">
+                        <input type="checkbox" class="form-check-input" id="selectAllSuggestions">
+                        <label class="form-check-label fw-bold" for="selectAllSuggestions">
+                            Select All Suggestions
+                        </label>
+                    </div>
+                    <hr>
+                `;
+                
+                data.feature_engineering.forEach((suggestion, index) => {
+                    suggestionsHTML += `
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input suggestion-checkbox" id="suggestion${index}" value="${index}">
+                            <label class="form-check-label" for="suggestion${index}">
+                                <strong>${suggestion.transformation}</strong> on ${suggestion.column || 'multiple columns'}: ${suggestion.reason}
+                            </label>
+                        </div>
+                    `;
+                });
+                
+                suggestionsHTML += '</form>';
+                suggestionsList.innerHTML = suggestionsHTML;
+                
+                // Add event listeners to checkboxes
+                document.querySelectorAll('.suggestion-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', updateApplyButton);
+                });
+                
+                // Add event listener to "Select All" checkbox
+                const selectAllCheckbox = document.getElementById('selectAllSuggestions');
+                selectAllCheckbox.addEventListener('change', function() {
+                    const isChecked = this.checked;
+                    document.querySelectorAll('.suggestion-checkbox').forEach(checkbox => {
+                        checkbox.checked = isChecked;
+                    });
+                    updateApplyButton();
+                });
+                
+                // Show suggestions
+                suggestionsList.style.display = 'block';
+                
+                // Update apply button state
+                updateApplyButton();
+            } else {
+                errorElement.textContent = 'No feature engineering suggestions available for this dataset.';
+                errorElement.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error loading feature engineering suggestions:', error);
+            errorElement.textContent = `Failed to load feature engineering suggestions: ${error.message}`;
+            errorElement.style.display = 'block';
+        } finally {
+            spinner.style.display = 'none';
+        }
+    }
+    
+    // Update apply button state
+    function updateApplyButton() {
+        const checkboxes = document.querySelectorAll('.suggestion-checkbox:checked');
+        const applyButton = document.getElementById('applyFeaturesBtn');
+        
+        applyButton.disabled = checkboxes.length === 0;
+    }
+    
+    // Update applyFeatureSuggestions function to handle the background task response correctly
+    async function applyFeatureSuggestions() {
+        const applyButton = document.getElementById('applyFeaturesBtn');
+        const spinner = document.getElementById('applySpinner');
+        const successElement = document.getElementById('applySuccess');
+        const errorElement = document.getElementById('applyError');
+        
+        try {
+            // Reset UI
+            successElement.style.display = 'none';
+            errorElement.style.display = 'none';
+            spinner.style.display = 'block';
+            applyButton.disabled = true;
+            
+            // Get selected suggestions
+            const selectedSuggestions = Array.from(document.querySelectorAll('.suggestion-checkbox:checked'))
+                .map(checkbox => parseInt(checkbox.value));
+            
+            if (selectedSuggestions.length === 0) {
+                errorElement.textContent = 'Please select at least one suggestion to apply.';
+                errorElement.style.display = 'block';
+                return;
+            }
+            
+            // Prepare request data
+            const requestData = {
+                suggestion_indices: selectedSuggestions,
+                include_pca: false,
+                pca_components: 0
+            };
+            
+            console.log("Sending apply-features request:", requestData);
+            
+            // Use fetch directly with error handling
+            const response = await fetch(`/api/v1/dataset/${datasetId}/apply-features`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `Failed to apply feature engineering: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log("Apply features response:", data);
+            
+            // Check if this is a background task
+            if (data.status === "processing" && data.task_id) {
+                // Show processing message
+                successElement.innerHTML = `
+                    Feature engineering started in the background. Please wait...
+                `;
+                successElement.style.display = 'block';
+                
+                // Poll for task completion
+                await pollTaskStatus(data.task_id, successElement, errorElement);
+            } else if (data.id) {
+                // Direct response with new dataset ID
+                successElement.innerHTML = `
+                    Transformations applied successfully! 
+                    <a href="/analysis/${data.id}" id="viewTransformedBtn">View transformed dataset</a>
+                `;
+                successElement.style.display = 'block';
+            } else {
+                throw new Error("Invalid response format from server");
+            }
+            
+            // Clear EDA content to force refresh when user switches to EDA tab
+            document.getElementById('correlationMatrix').innerHTML = '';
+            document.getElementById('distributionPlots').innerHTML = '';
+            document.getElementById('featureRelationships').innerHTML = '';
+            document.getElementById('missingValues').innerHTML = '';
+            document.getElementById('outlierDetection').innerHTML = '';
+            
+            // If we're already on the EDA tab, reload it
+            if (document.getElementById('eda-tab').classList.contains('active')) {
+                loadEDA();
+            }
+            
+        } catch (error) {
+            console.error('Error applying feature engineering:', error);
+            errorElement.textContent = error.message || 'Failed to apply feature engineering. Please try again.';
+            errorElement.style.display = 'block';
+        } finally {
+            spinner.style.display = 'none';
+            applyButton.disabled = false;
+        }
+    }
+
+    // Function to poll task status
+    async function pollTaskStatus(taskId, successElement, errorElement) {
+        const maxAttempts = 30; // Maximum number of polling attempts
+        const pollInterval = 2000; // Poll every 2 seconds
+        const spinner = document.getElementById('applySpinner');
+        const loadingText = spinner.querySelector('.loading-text');
+        
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                // Wait for the polling interval
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                
+                // Update loading text with progress
+                const progress = Math.round((attempt + 1) / maxAttempts * 100);
+                loadingText.innerHTML = `Applying transformations... (${progress}%)`;
+                
+                // Check task status
+                const response = await fetch(`/api/v1/task/${taskId}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to check task status: ${response.status} ${response.statusText}`);
+                }
+                
+                const taskData = await response.json();
+                console.log("Task status:", taskData);
+                
+                // Check if task is completed
+                if (taskData.status === "completed" && taskData.result && taskData.result.dataset_id) {
+                    successElement.innerHTML = `
+                        <div class="alert-heading h5"><i class="fas fa-check-circle"></i> Success!</div>
+                        <p>Transformations applied successfully!</p>
+                        <a href="/analysis/${taskData.result.dataset_id}" class="btn btn-success btn-sm" id="viewTransformedBtn">
+                            <i class="fas fa-chart-bar"></i> View transformed dataset
+                        </a>
+                    `;
+                    return;
+                }
+                
+                // Check if task failed
+                if (taskData.status === "failed") {
+                    throw new Error(taskData.error || "Feature engineering failed");
+                }
+                
+                // If we're still processing but the task is not found in the database,
+                // check the datasets list to see if a new dataset was created
+                if (taskData.status === "processing" && taskData.message && taskData.message.includes("not found")) {
+                    // Try to get the latest datasets
+                    const datasetsResponse = await fetch('/api/v1/datasets/');
+                    if (datasetsResponse.ok) {
+                        const datasets = await datasetsResponse.json();
+                        
+                        // Sort datasets by upload time (newest first)
+                        datasets.sort((a, b) => new Date(b.upload_time) - new Date(a.upload_time));
+                        
+                        // If we have a new dataset, assume it's the one we just created
+                        if (datasets.length > 0) {
+                            const latestDataset = datasets[0];
+                            successElement.innerHTML = `
+                                <div class="alert-heading h5"><i class="fas fa-check-circle"></i> Success!</div>
+                                <p>Transformations may have completed.</p>
+                                <div class="d-flex gap-2">
+                                    <a href="/analysis/${latestDataset._id}" class="btn btn-success btn-sm" id="viewTransformedBtn">
+                                        <i class="fas fa-chart-bar"></i> View latest dataset
+                                    </a>
+                                    <a href="/" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-list"></i> View all datasets
+                                    </a>
+                                </div>
+                            `;
+                            return;
+                        }
+                    }
+                }
+                
+                // Update progress message in success element
+                successElement.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <strong>Feature engineering in progress...</strong>
+                        <div class="progress ms-auto" style="width: 60%;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" 
+                                 style="width: ${progress}%;" 
+                                 aria-valuenow="${progress}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                ${progress}%
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error("Error polling task status:", error);
+                errorElement.textContent = error.message || "Error checking task status";
+                errorElement.style.display = 'block';
+                return;
+            }
+        }
+        
+        // If we reach here, polling timed out
+        // Try one last time to get the latest datasets
+        try {
+            const datasetsResponse = await fetch('/api/v1/datasets/');
+            if (datasetsResponse.ok) {
+                const datasets = await datasetsResponse.json();
+                
+                // Sort datasets by upload time (newest first)
+                datasets.sort((a, b) => new Date(b.upload_time) - new Date(a.upload_time));
+                
+                // If we have a new dataset, assume it's the one we just created
+                if (datasets.length > 0) {
+                    const latestDataset = datasets[0];
+                    successElement.innerHTML = `
+                        <div class="alert-heading h5"><i class="fas fa-info-circle"></i> Information</div>
+                        <p>Feature engineering is taking longer than expected.</p>
+                        <div class="d-flex gap-2">
+                            <a href="/analysis/${latestDataset._id}" class="btn btn-success btn-sm" id="viewTransformedBtn">
+                                <i class="fas fa-chart-bar"></i> View latest dataset
+                            </a>
+                            <a href="/" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-list"></i> View all datasets
+                            </a>
+                        </div>
+                    `;
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error("Error getting datasets list:", e);
+        }
+        
+        // If all else fails, show a message to check the datasets list
+        errorElement.textContent = "Feature engineering is taking longer than expected. Please check the datasets list later.";
+        errorElement.style.display = 'block';
+        
+        // Add a link to the datasets list
+        successElement.innerHTML = `
+            <a href="/" class="btn btn-primary">View All Datasets</a>
+        `;
+        successElement.style.display = 'block';
+    }
+
+    // Function to apply PCA
+    async function applyPCA() {
+        const applyButton = document.getElementById('applyPCABtn');
+        const spinner = document.getElementById('pcaSpinner');
+        const successElement = document.getElementById('pcaSuccess');
+        const errorElement = document.getElementById('pcaError');
+        const resultsElement = document.getElementById('pcaResults');
+        
+        try {
+            // Reset UI
+            successElement.style.display = 'none';
+            errorElement.style.display = 'none';
+            spinner.style.display = 'block';
+            applyButton.disabled = true;
+            
+            // Get PCA parameters
+            const pcaComponents = parseInt(document.getElementById('pcaComponents').value);
+            const varianceThreshold = parseFloat(document.getElementById('varianceThreshold').value);
+            
+            // Prepare request
+            const response = await fetch(`/api/v1/dataset/${datasetId}/pca?n_components=${pcaComponents}&variance_threshold=${varianceThreshold}`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `Failed to apply PCA: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log("PCA response:", data);
+            
+            // Show success message
+            successElement.innerHTML = `
+                PCA applied successfully! 
+                <a href="/analysis/${data.id}" id="viewPCABtn">View transformed dataset</a>
+            `;
+            successElement.style.display = 'block';
+            
+            // Display PCA results
+            let resultsHTML = `
+                <h5>PCA Results</h5>
+                <p>Total variance explained: ${data.total_variance_explained.toFixed(2)}%</p>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Explained Variance (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.explained_variance.forEach((variance, index) => {
+                resultsHTML += `
+                    <tr>
+                        <td>${data.components[index]}</td>
+                        <td>${variance.toFixed(2)}%</td>
+                    </tr>
+                `;
+            });
+            
+            resultsHTML += `
+                        </tbody>
+                    </table>
+                </div>
+                
+                <h5 class="mt-3">Feature Importance</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+            `;
+            
+            data.components.forEach(component => {
+                resultsHTML += `<th>${component}</th>`;
+            });
+            
+            resultsHTML += `
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            Object.keys(data.feature_importance).forEach(feature => {
+                resultsHTML += `<tr><td>${feature}</td>`;
+                data.feature_importance[feature].forEach(importance => {
+                    resultsHTML += `<td>${importance.toFixed(4)}</td>`;
+                });
+                resultsHTML += `</tr>`;
+            });
+            
+            resultsHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            resultsElement.innerHTML = resultsHTML;
+            
+            // Clear EDA content to force refresh when user switches to EDA tab
+            document.getElementById('correlationMatrix').innerHTML = '';
+            document.getElementById('distributionPlots').innerHTML = '';
+            document.getElementById('featureRelationships').innerHTML = '';
+            document.getElementById('missingValues').innerHTML = '';
+            document.getElementById('outlierDetection').innerHTML = '';
+            
+            // If we're already on the EDA tab, reload it
+            if (document.getElementById('eda-tab').classList.contains('active')) {
+                loadEDA();
+            }
+            
+        } catch (error) {
+            console.error('Error applying PCA:', error);
+            errorElement.textContent = error.message || 'Failed to apply PCA. Please try again.';
+            errorElement.style.display = 'block';
+        } finally {
+            spinner.style.display = 'none';
+            applyButton.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

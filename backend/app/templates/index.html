@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Data Analysis Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0">Data Analysis Platform</h3>
+            </div>
+            <div class="card-body">
+                <p class="lead">Upload your dataset and get AI-powered analysis</p>
+                
+                <form id="uploadForm" enctype="multipart/form-data" class="mb-4">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Choose a CSV file to upload</label>
+                        <input class="form-control" type="file" id="file" name="file" accept=".csv">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload & Analyze</button>
+                </form>
+                
+                <div id="spinner" class="text-center d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Processing your dataset...</p>
+                </div>
+                
+                <div id="uploadSuccess" class="alert alert-success d-none">
+                    <h4 class="alert-heading">Dataset Uploaded!</h4>
+                    <p>Your dataset has been uploaded successfully. Click the button below to view analysis.</p>
+                    <a id="viewAnalysisBtn" href="#" class="btn btn-success">View Analysis</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow mt-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="card-title mb-0">Recent Datasets</h4>
+            </div>
+            <div class="card-body">
+                <div id="recentDatasets">
+                    <p class="text-center">Loading recent datasets...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load recent datasets
+    loadRecentDatasets();
+    
+    // Handle form submission
+    const uploadForm = document.getElementById('uploadForm');
+    const spinner = document.getElementById('spinner');
+    const uploadSuccess = document.getElementById('uploadSuccess');
+    const viewAnalysisBtn = document.getElementById('viewAnalysisBtn');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    uploadForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('file');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            errorMessage.textContent = 'Please select a file to upload';
+            errorMessage.classList.remove('d-none');
+            return;
+        }
+        
+        // Hide error message if visible
+        errorMessage.classList.add('d-none');
+        
+        // Show spinner
+        spinner.classList.remove('d-none');
+        uploadForm.classList.add('d-none');
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            // Upload file
+            const response = await fetch('/api/v1/dataset/', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            // Hide spinner
+            spinner.classList.add('d-none');
+            
+            // Show success message
+            uploadSuccess.classList.remove('d-none');
+            viewAnalysisBtn.href = `/analysis/${data.id}`;
+            
+            // Refresh recent datasets
+            loadRecentDatasets();
+            
+        } catch (error) {
+            // Hide spinner
+            spinner.classList.add('d-none');
+            
+            // Show form again
+            uploadForm.classList.remove('d-none');
+            
+            // Show error
+            errorMessage.textContent = error.message;
+            errorMessage.classList.remove('d-none');
+        }
+    });
+    
+    async function loadRecentDatasets() {
+        const recentDatasetsDiv = document.getElementById('recentDatasets');
+        
+        try {
+            const response = await fetch('/api/v1/datasets/');
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load datasets: ${response.statusText}`);
+            }
+            
+            const datasets = await response.json();
+            
+            if (datasets.length === 0) {
+                recentDatasetsDiv.innerHTML = '<p>No datasets available. Upload your first dataset!</p>';
+                return;
+            }
+            
+            let html = '<div class="list-group">';
+            
+            datasets.forEach(dataset => {
+                html += `<a href="/analysis/${dataset.id}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">${dataset.name}</h5>
+                    </div>
+                    <p class="mb-1">${dataset.row_count} rows, ${dataset.columns.length} columns</p>
+                </a>`;
+            });
+            
+            html += '</div>';
+            recentDatasetsDiv.innerHTML = html;
+            
+        } catch (error) {
+            recentDatasetsDiv.innerHTML = `<div class="alert alert-warning">Failed to load recent datasets: ${error.message}</div>`;
+        }
+    }
+});
+</script>
+{% endblock %} 
