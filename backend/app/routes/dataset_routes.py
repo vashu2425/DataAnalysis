@@ -295,8 +295,156 @@ async def get_eda_report(dataset_id: str):
             # Try to use pandas-profiling (ydata-profiling) for a comprehensive report
             try:
                 from ydata_profiling import ProfileReport
-                profile = ProfileReport(df, title=f"EDA Report for {dataset['name']}", explorative=True)
-                profile.to_file(report_path)
+                profile = ProfileReport(df, title=f"EDA Report for {dataset['name']}", 
+                                       explorative=True,
+                                       html={'style': {'full_width': True}})
+                
+                # Add custom section for training compatibility
+                training_compatibility = assess_training_compatibility(df, dataset.get("metadata", {}))
+                
+                # Save the report to HTML first to add custom sections
+                html_report_path = report_path.with_suffix('.html')
+                profile.to_file(html_report_path)
+                
+                # Read the HTML content
+                with open(html_report_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                
+                # Check for binned columns and PCA components
+                binned_columns = []
+                for col in df.select_dtypes(include=['object', 'category']).columns:
+                    if df[col].dtype == 'object' and df[col].str.contains(r'[\(\[].*,.*[\)\]]').any():
+                        binned_columns.append(col)
+                
+                pca_columns = [col for col in df.columns if col.startswith('PC') and col[2:].isdigit()]
+                
+                # Create a more detailed training compatibility section
+                training_section = f"""
+                <div class="row">
+                    <div class="col-sm-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4>Machine Learning Training Compatibility</h4>
+                            </div>
+                            <div class="card-body">
+                                <p>This section evaluates the dataset's compatibility for machine learning training.</p>
+                                <div class="alert alert-{'success' if training_compatibility['overall_score'] >= 70 else 'warning'}">
+                                    <h5>Overall Compatibility Score: {training_compatibility['overall_score']}%</h5>
+                                    <p>{training_compatibility['overall_message']}</p>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5>Compatibility Factors:</h5>
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Factor</th>
+                                                    <th>Score</th>
+                                                    <th>Assessment</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Missing Values</td>
+                                                    <td>{training_compatibility['missing_values_score']}%</td>
+                                                    <td>{training_compatibility['missing_values_message']}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Data Types</td>
+                                                    <td>{training_compatibility['data_types_score']}%</td>
+                                                    <td>{training_compatibility['data_types_message']}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Feature Distribution</td>
+                                                    <td>{training_compatibility['feature_distribution_score']}%</td>
+                                                    <td>{training_compatibility['feature_distribution_message']}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Feature Correlation</td>
+                                                    <td>{training_compatibility['correlation_score']}%</td>
+                                                    <td>{training_compatibility['correlation_message']}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Dataset Size</td>
+                                                    <td>{training_compatibility['size_score']}%</td>
+                                                    <td>{training_compatibility['size_message']}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Preprocessing Quality</td>
+                                                    <td>{training_compatibility['preprocessing_score']}%</td>
+                                                    <td>{training_compatibility['preprocessing_message']}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <h5>Recommendations:</h5>
+                                        <ul class="list-group">
+                                            {''.join(f'<li class="list-group-item">{rec}</li>' for rec in training_compatibility['recommendations'])}
+                                        </ul>
+                                        
+                                        <div class="mt-4">
+                                            <h5>Special Features:</h5>
+                                            <ul class="list-group">
+                                                {f'<li class="list-group-item"><strong>Binned Features:</strong> This dataset contains {len(binned_columns)} binned numeric features that represent ranges of values.</li>' if binned_columns else ''}
+                                                {f'<li class="list-group-item"><strong>PCA Components:</strong> This dataset contains {len(pca_columns)} PCA components from dimensionality reduction.</li>' if pca_columns else ''}
+                                                {f'<li class="list-group-item"><strong>Feature Engineering:</strong> This dataset has undergone feature engineering transformations.</li>' if "metadata" in dataset and "transformations" in dataset["metadata"] else ''}
+                                                {f'<li class="list-group-item"><strong>Feature Selection:</strong> This dataset has undergone feature selection.</li>' if "metadata" in dataset and "feature_selection" in dataset["metadata"] else ''}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>Training Package</h5>
+                                    <p>
+                                        You can download a complete training package for this dataset, which includes:
+                                    </p>
+                                    <ul>
+                                        <li><strong>dataset.csv</strong>: The clean dataset for training</li>
+                                        <li><strong>metadata.json</strong>: Information about the dataset structure</li>
+                                        <li><strong>README.md</strong>: Documentation on dataset usage</li>
+                                        <li><strong>train_model.py</strong>: A Python script for loading, preprocessing, training, and evaluating a model</li>
+                                    </ul>
+                                    <p>
+                                        <a href="/api/v1/dataset/{dataset_id}/download-training" class="btn btn-primary">
+                                            Download Training-Ready Package
+                                        </a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                """
+                
+                html_content = html_content.replace('</body>', f'{training_section}</body>')
+                
+                # Write the modified HTML content back to the file
+                with open(html_report_path, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+                
+                # Convert HTML to PDF
+                import pdfkit
+                try:
+                    # Try to use pdfkit with wkhtmltopdf
+                    pdfkit.from_file(str(html_report_path), str(report_path))
+                except Exception as pdf_error:
+                    print(f"Error converting HTML to PDF with pdfkit: {str(pdf_error)}")
+                    # Fallback to using weasyprint
+                    try:
+                        from weasyprint import HTML
+                        HTML(str(html_report_path)).write_pdf(str(report_path))
+                    except Exception as weasy_error:
+                        print(f"Error converting HTML to PDF with weasyprint: {str(weasy_error)}")
+                        # If both fail, just return the HTML report
+                        return FileResponse(
+                            path=html_report_path,
+                            filename=f"EDA_Report_{dataset['name']}.html",
+                            media_type="text/html"
+                        )
                 
                 # Return the report file
                 return FileResponse(
@@ -358,6 +506,33 @@ async def get_eda_report(dataset_id: str):
                 ('PADDING', (0, 0), (-1, -1), 6)
             ]))
             elements.append(summary_table)
+            elements.append(Spacer(1, 12))
+            
+            # Training Compatibility Section
+            elements.append(Paragraph("<b>Machine Learning Training Compatibility</b>", styles['Heading2']))
+            training_compatibility = assess_training_compatibility(df, dataset.get("metadata", {}))
+            
+            compatibility_data = [
+                ["Overall Score", f"{training_compatibility['overall_score']}%"],
+                ["Missing Values", training_compatibility['missing_values_message']],
+                ["Data Types", training_compatibility['data_types_message']],
+                ["Feature Distribution", training_compatibility['feature_distribution_message']],
+                ["Feature Correlation", training_compatibility['correlation_message']],
+                ["Dataset Size", training_compatibility['size_message']]
+            ]
+            
+            compatibility_table = Table(compatibility_data)
+            compatibility_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('PADDING', (0, 0), (-1, -1), 6)
+            ]))
+            elements.append(compatibility_table)
+            elements.append(Spacer(1, 12))
+            
+            elements.append(Paragraph("<b>Recommendations for Training</b>", styles['Heading3']))
+            for rec in training_compatibility['recommendations']:
+                elements.append(Paragraph(f"• {rec}", styles['Normal']))
             elements.append(Spacer(1, 12))
             
             # Data Types
@@ -1568,5 +1743,315 @@ async def download_dataset(dataset_id: str):
         )
     except Exception as e:
         print(f"Error downloading dataset: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/dataset/{dataset_id}/download-training")
+async def download_training_dataset(dataset_id: str):
+    """Download the dataset in a format optimized for machine learning training"""
+    try:
+        # Get dataset from database
+        dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        # Convert ObjectId to string
+        dataset = convert_objectid_to_str(dataset)
+        
+        # Load data from stored file
+        file_path = DATA_DIR / dataset["stored_filename"]
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Dataset file not found")
+            
+        # Load the dataset
+        df = pd.read_csv(file_path)
+        
+        # Create a temporary directory for the training package
+        import tempfile
+        import zipfile
+        import json
+        import shutil
+        
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # Save the dataset in CSV format
+            dataset_path = os.path.join(temp_dir, "dataset.csv")
+            df.to_csv(dataset_path, index=False)
+            
+            # Create a metadata file with information about the dataset
+            metadata = {
+                "name": dataset.get("name", "dataset"),
+                "columns": df.columns.tolist(),
+                "shape": df.shape,
+                "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
+                "numeric_columns": df.select_dtypes(include=['number']).columns.tolist(),
+                "categorical_columns": df.select_dtypes(include=['object', 'category']).columns.tolist(),
+                "missing_values": {col: int(df[col].isna().sum()) for col in df.columns},
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Identify binned columns
+            binned_columns = []
+            for col in metadata["categorical_columns"]:
+                if df[col].dtype == 'object' and df[col].str.contains(r'[\(\[].*,.*[\)\]]').any():
+                    binned_columns.append(col)
+            
+            if binned_columns:
+                metadata["binned_columns"] = binned_columns
+            
+            # Identify PCA components
+            pca_columns = [col for col in df.columns if col.startswith('PC') and col[2:].isdigit()]
+            if pca_columns:
+                metadata["pca_columns"] = pca_columns
+            
+            # Add feature engineering info if available
+            if "metadata" in dataset and "transformations" in dataset["metadata"]:
+                metadata["transformations"] = dataset["metadata"]["transformations"]
+            
+            # Add feature selection info if available
+            if "metadata" in dataset and "feature_selection" in dataset["metadata"]:
+                metadata["feature_selection"] = dataset["metadata"]["feature_selection"]
+            
+            # Add PCA info if available
+            if "pca_info" in dataset:
+                metadata["pca_info"] = dataset["pca_info"]
+            
+            # Assess training compatibility
+            training_compatibility = assess_training_compatibility(df, metadata)
+            metadata["training_compatibility"] = training_compatibility
+            
+            # Save metadata as JSON
+            metadata_path = os.path.join(temp_dir, "metadata.json")
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f, indent=2, default=str)
+            
+            # Create a README file with instructions
+            readme_path = os.path.join(temp_dir, "README.md")
+            with open(readme_path, "w") as f:
+                f.write(f"""# Training Dataset: {dataset.get('name', 'dataset')}
+
+This package contains a dataset prepared for machine learning training.
+
+## Contents
+- `dataset.csv`: The dataset in CSV format
+- `metadata.json`: Metadata about the dataset including column information
+- `train_model.py`: Python script for training a model with this dataset
+- `README.md`: This file
+
+## Dataset Information
+- Rows: {df.shape[0]}
+- Columns: {df.shape[1]}
+- Numeric columns: {len(metadata["numeric_columns"])}
+- Categorical columns: {len(metadata["categorical_columns"])}
+""")
+
+                # Add information about binned columns if present
+                if binned_columns:
+                    f.write(f"\n## Binned Features\nThis dataset contains {len(binned_columns)} binned numeric features. These are categorical features that represent ranges of numeric values (e.g., '(-0.839, 0.46]').\n")
+                    f.write("\nThese binned features are compatible with tree-based models like Random Forest and XGBoost without further processing. For other models, you may want to convert them back to numeric values or use one-hot encoding.\n")
+                
+                # Add information about PCA if present
+                if pca_columns:
+                    f.write(f"\n## PCA Components\nThis dataset contains {len(pca_columns)} PCA components that represent dimensionality reduction of the original features.\n")
+                
+                # Add training compatibility information
+                f.write(f"\n## Training Compatibility\nOverall compatibility score: {training_compatibility['overall_score']}%\n")
+                f.write(f"\n{training_compatibility['overall_message']}\n")
+                
+                if training_compatibility['recommendations']:
+                    f.write("\n### Recommendations\n")
+                    for rec in training_compatibility['recommendations']:
+                        f.write(f"- {rec}\n")
+                
+                f.write("""
+## Usage
+This dataset is ready for machine learning training. You can load it using:
+
+```python
+import pandas as pd
+df = pd.read_csv('dataset.csv')
+```
+
+## Training a Model
+A sample script `train_model.py` is included in this package to help you get started with training a model.
+You can run it directly or modify it for your specific needs.
+
+```bash
+python train_model.py
+```
+
+## Metadata
+The metadata.json file contains detailed information about the dataset structure,
+including data types, missing values, and any transformations applied.
+""")
+            
+            # Create a sample training script with enhanced handling for processed features
+            script_path = os.path.join(temp_dir, "train_model.py")
+            with open(script_path, "w") as f:
+                f.write("""import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.metrics import accuracy_score, r2_score, classification_report, mean_squared_error
+import json
+import re
+
+# Load the dataset
+print("Loading dataset...")
+df = pd.read_csv('dataset.csv')
+
+# Load metadata
+with open('metadata.json', 'r') as f:
+    metadata = json.load(f)
+
+print(f"Dataset shape: {df.shape}")
+
+# Identify numeric and categorical columns
+numeric_cols = metadata['numeric_columns']
+categorical_cols = metadata['categorical_columns']
+
+# Handle binned columns specially if present
+binned_cols = metadata.get('binned_columns', [])
+regular_cat_cols = [col for col in categorical_cols if col not in binned_cols]
+
+# Identify PCA columns if present
+pca_cols = metadata.get('pca_columns', [])
+
+# Function to convert binned columns to numeric (midpoint of range)
+def convert_binned_to_numeric(df, binned_columns):
+    df_copy = df.copy()
+    for col in binned_columns:
+        if col in df.columns:
+            # Extract numeric values from interval notation like '(-0.839, 0.46]'
+            df_copy[f"{col}_numeric"] = df[col].apply(lambda x: 
+                np.mean([float(re.findall(r'[-+]?\d*\.\d+|\d+', str(x))[0]), 
+                         float(re.findall(r'[-+]?\d*\.\d+|\d+', str(x))[1])]) 
+                if isinstance(x, str) and re.findall(r'[-+]?\d*\.\d+|\d+', str(x)) and len(re.findall(r'[-+]?\d*\.\d+|\d+', str(x))) >= 2 
+                else np.nan
+            )
+    return df_copy
+
+# Assume the last column is the target (modify as needed)
+target_col = df.columns[-1]
+print(f"Using '{target_col}' as the target variable")
+
+# Check if target is in a special column list
+if target_col in binned_cols:
+    print(f"Target is a binned column. Converting to numeric.")
+    df = convert_binned_to_numeric(df, [target_col])
+    target_col = f"{target_col}_numeric"
+
+# Split features and target
+feature_cols = [col for col in df.columns if col != target_col and not col.endswith('_numeric')]
+X = df[feature_cols]
+y = df[target_col]
+
+# Split into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Create preprocessing pipelines
+numeric_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler', StandardScaler())
+])
+
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))
+])
+
+# Combine preprocessing steps
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, [col for col in numeric_cols if col in feature_cols and col not in pca_cols]),
+        ('cat', categorical_transformer, [col for col in regular_cat_cols if col in feature_cols]),
+        ('bin', 'passthrough', [col for col in binned_cols if col in feature_cols])
+    ])
+
+# Determine if this is a classification or regression problem
+# This is a simple heuristic - modify as needed
+is_classification = len(np.unique(y)) < 10 or (hasattr(y, 'dtype') and (y.dtype == 'object' or y.dtype == 'category'))
+
+print(f"Task type: {'Classification' if is_classification else 'Regression'}")
+
+# Create the model pipeline
+if is_classification:
+    model = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('classifier', RandomForestClassifier(n_estimators=100, random_state=42))
+    ])
+    
+    # Train the model
+    print("Training classification model...")
+    model.fit(X_train, y_train)
+    
+    # Evaluate
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    print(f"Model accuracy: {accuracy:.4f}")
+    print("\\nClassification Report:")
+    print(classification_report(y_test, y_pred))
+else:
+    model = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('regressor', RandomForestRegressor(n_estimators=100, random_state=42))
+    ])
+    
+    # Train the model
+    print("Training regression model...")
+    model.fit(X_train, y_train)
+    
+    # Evaluate
+    y_pred = model.predict(X_test)
+    r2 = r2_score(y_test, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    print(f"Model R² score: {r2:.4f}")
+    print(f"Root Mean Squared Error: {rmse:.4f}")
+
+print("\\nTraining complete! You can modify this script for your specific needs.")
+print("\\nFeature Importances:")
+if is_classification:
+    importances = model.named_steps['classifier'].feature_importances_
+else:
+    importances = model.named_steps['regressor'].feature_importances_
+
+# Get feature names after preprocessing
+if hasattr(model.named_steps['preprocessor'], 'get_feature_names_out'):
+    feature_names = model.named_steps['preprocessor'].get_feature_names_out()
+else:
+    # Fallback for older scikit-learn versions
+    feature_names = feature_cols
+
+# Display top 10 most important features
+if len(feature_names) == len(importances):
+    indices = np.argsort(importances)[::-1][:10]
+    for i in indices:
+        print(f"{feature_names[i]}: {importances[i]:.4f}")
+""")
+            
+            # Create a zip file containing all the files
+            zip_path = os.path.join(temp_dir, "training_package.zip")
+            with zipfile.ZipFile(zip_path, 'w') as zipf:
+                zipf.write(dataset_path, arcname="dataset.csv")
+                zipf.write(metadata_path, arcname="metadata.json")
+                zipf.write(readme_path, arcname="README.md")
+                zipf.write(script_path, arcname="train_model.py")
+            
+            # Return the zip file
+            return FileResponse(
+                path=zip_path,
+                filename=f"{dataset.get('name', 'dataset')}_training_package.zip",
+                media_type="application/zip"
+            )
+        finally:
+            # Clean up the temporary directory
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            
+    except Exception as e:
+        print(f"Error preparing training dataset: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e)) 

@@ -8,7 +8,17 @@
         <h2 id="datasetName">Dataset Analysis</h2>
         <div>
             <a href="/" class="btn btn-outline-primary me-2">Back to Home</a>
-            <a id="downloadBtn" href="#" class="btn btn-outline-success">Download Dataset</a>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-outline-success dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Download
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="downloadDropdown">
+                    <li><a id="downloadBtn" href="#" class="dropdown-item">Download Dataset (CSV)</a></li>
+                    <li><a id="downloadTrainingBtn" href="#" class="dropdown-item">Download Training Package</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a id="downloadEDAReportBtn" href="#" class="dropdown-item">Download EDA Report (PDF)</a></li>
+                </ul>
+            </div>
         </div>
     </div>
     
@@ -302,8 +312,10 @@
         
         console.log("Working with dataset ID:", datasetId);
         
-        // Set up download button
+        // Set up download buttons
         document.getElementById('downloadBtn').href = `/api/v1/dataset/${datasetId}/download`;
+        document.getElementById('downloadTrainingBtn').href = `/api/v1/dataset/${datasetId}/download-training`;
+        document.getElementById('downloadEDAReportBtn').href = `/api/v1/dataset/${datasetId}/eda-report`;
         
         // Load dataset information
         loadDatasetInfo();
@@ -345,6 +357,51 @@
 
         document.getElementById('downloadEDABtn').addEventListener('click', function() {
             window.open(`/api/v1/dataset/${datasetId}/eda-report`, '_blank');
+        });
+        
+        // Add event listener for the new download EDA report button in the dropdown
+        document.getElementById('downloadEDAReportBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            window.open(`/api/v1/dataset/${datasetId}/eda-report`, '_blank');
+        });
+        
+        // Add event delegation for viewTransformedBtn clicks
+        document.addEventListener('click', function(event) {
+            if (event.target && (event.target.id === 'viewTransformedBtn' || event.target.closest('#viewTransformedBtn'))) {
+                event.preventDefault();
+                const href = event.target.href || event.target.closest('#viewTransformedBtn').href;
+                if (href) {
+                    const newDatasetId = href.split('/').pop();
+                    if (newDatasetId && /^[0-9a-f]{24}$/i.test(newDatasetId)) {
+                        // Update the dataset ID
+                        datasetId = newDatasetId;
+                        
+                        // Update the URL without reloading the page
+                        window.history.pushState({}, '', `/analysis/${datasetId}`);
+                        
+                        // Update the download buttons
+                        document.getElementById('downloadBtn').href = `/api/v1/dataset/${datasetId}/download`;
+                        document.getElementById('downloadTrainingBtn').href = `/api/v1/dataset/${datasetId}/download-training`;
+                        document.getElementById('downloadEDAReportBtn').href = `/api/v1/dataset/${datasetId}/eda-report`;
+                        
+                        // Clear existing content to force reload
+                        document.getElementById('correlationMatrix').innerHTML = '';
+                        document.getElementById('distributionPlots').innerHTML = '';
+                        document.getElementById('featureRelationships').innerHTML = '';
+                        document.getElementById('missingValues').innerHTML = '';
+                        document.getElementById('outlierDetection').innerHTML = '';
+                        
+                        // Load dataset info
+                        loadDatasetInfo();
+                        
+                        // Switch to the EDA tab and load it
+                        const edaTab = document.getElementById('eda-tab');
+                        if (edaTab) {
+                            edaTab.click();
+                        }
+                    }
+                }
+            }
         });
     });
     
@@ -407,13 +464,14 @@
                 // Get all statistics
                 const stats = Object.keys(Object.values(data.metadata.numeric_summary)[0]);
                 
-                // Create table
-                let tableHTML = '<table class="table table-sm table-striped">';
+                // Create table with scrollable container
+                let tableHTML = '<div class="table-responsive" style="max-height: 400px; overflow-y: auto; overflow-x: auto;">';
+                tableHTML += '<table class="table table-sm table-striped">';
                 
-                // Header row
-                tableHTML += '<thead><tr><th>Statistic</th>';
+                // Header row with sticky positioning
+                tableHTML += '<thead><tr><th style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;">Statistic</th>';
                 Object.keys(data.metadata.numeric_summary).forEach(column => {
-                    tableHTML += `<th>${column}</th>`;
+                    tableHTML += `<th style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 1;">${column}</th>`;
                 });
                 tableHTML += '</tr></thead><tbody>';
                 
@@ -427,7 +485,7 @@
                     tableHTML += '</tr>';
                 });
                 
-                tableHTML += '</tbody></table>';
+                tableHTML += '</tbody></table></div>';
                 numericSummary.innerHTML = tableHTML;
             } else {
                 numericSummary.innerHTML = '<p>No numeric columns found in this dataset.</p>';
@@ -548,34 +606,46 @@
                 
                 // Add highlighting for strongest correlations
                 const strongCorrelations = [];
+                console.log("Checking correlations in dataset:", datasetId);
+                console.log("Correlation data:", data.correlation);
+                
+                // Lower threshold to 0.1 to ensure we catch more correlations
+                const correlationThreshold = 0.1;
+                
                 columns.forEach(row => {
                     columns.forEach(col => {
                         if (row !== col) {
                             const value = data.correlation[row][col];
-                            if (Math.abs(value) > 0.7) {
+                            console.log(`Correlation between ${row} and ${col}: ${value}`);
+                            if (Math.abs(value) > correlationThreshold) {
                                 strongCorrelations.push({row, col, value});
                             }
                         }
                     });
                 });
                 
+                console.log("Strong correlations found:", strongCorrelations.length);
+                
                 // Sort by absolute correlation strength
                 strongCorrelations.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
                 
-                // Display top correlations if any exist
+                // Display top correlations - always show this section even if no strong correlations
+                let topCorrelationsHTML = `
+                <div class="card mt-3 mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-star"></i> Notable Correlations</h6>
+                    </div>
+                    <div class="card-body">
+                `;
+                
                 if (strongCorrelations.length > 0) {
-                    let topCorrelationsHTML = `
-                    <div class="card mt-3 mb-4">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-star"></i> Notable Correlations</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="card-text small">The following pairs of features show strong correlations:</p>
-                            <ul class="list-group list-group-flush">
+                    topCorrelationsHTML += `
+                        <p class="card-text small">The following pairs of features show notable correlations (|correlation| > ${correlationThreshold}):</p>
+                        <ul class="list-group list-group-flush">
                     `;
                     
-                    // Show top 5 strongest correlations
-                    strongCorrelations.slice(0, 5).forEach(corr => {
+                    // Show top 10 strongest correlations instead of just 5
+                    strongCorrelations.slice(0, 10).forEach(corr => {
                         const correlationType = corr.value > 0 ? 
                             '<span class="badge badge-primary">Positive</span>' : 
                             '<span class="badge badge-danger">Negative</span>';
@@ -588,14 +658,20 @@
                         `;
                     });
                     
+                    topCorrelationsHTML += `</ul>`;
+                } else {
                     topCorrelationsHTML += `
-                            </ul>
-                        </div>
-                    </div>
+                        <p class="card-text">No notable correlations found between variables (threshold: |correlation| > ${correlationThreshold}).</p>
+                        <p class="card-text small">This suggests that the variables in this dataset may be relatively independent of each other.</p>
                     `;
-                    
-                    correlationMatrix.innerHTML += topCorrelationsHTML;
                 }
+                
+                topCorrelationsHTML += `
+                    </div>
+                </div>
+                `;
+                
+                correlationMatrix.innerHTML += topCorrelationsHTML;
             } else {
                 if (data.message) {
                     correlationMatrix.innerHTML = `<div class="alert alert-info">${data.message}</div>`;
@@ -942,6 +1018,9 @@
                     <a href="/analysis/${data.id}" id="viewTransformedBtn">View transformed dataset</a>
                 `;
                 successElement.style.display = 'block';
+                
+                // Update the current dataset ID to the new transformed dataset
+                datasetId = data.id;
             } else {
                 throw new Error("Invalid response format from server");
             }
@@ -995,6 +1074,9 @@
                 
                 // Check if task is completed
                 if (taskData.status === "completed" && taskData.result && taskData.result.dataset_id) {
+                    // Update the current dataset ID to the new transformed dataset
+                    datasetId = taskData.result.dataset_id;
+                    
                     successElement.innerHTML = `
                         <div class="alert-heading h5"><i class="fas fa-check-circle"></i> Success!</div>
                         <p>Transformations applied successfully!</p>
@@ -1002,6 +1084,19 @@
                             <i class="fas fa-chart-bar"></i> View transformed dataset
                         </a>
                     `;
+                    
+                    // Clear EDA content to force refresh
+                    document.getElementById('correlationMatrix').innerHTML = '';
+                    document.getElementById('distributionPlots').innerHTML = '';
+                    document.getElementById('featureRelationships').innerHTML = '';
+                    document.getElementById('missingValues').innerHTML = '';
+                    document.getElementById('outlierDetection').innerHTML = '';
+                    
+                    // If we're already on the EDA tab, reload it
+                    if (document.getElementById('eda-tab').classList.contains('active')) {
+                        loadEDA();
+                    }
+                    
                     return;
                 }
                 
@@ -1024,6 +1119,9 @@
                         // If we have a new dataset, assume it's the one we just created
                         if (datasets.length > 0) {
                             const latestDataset = datasets[0];
+                            // Update the current dataset ID to the new transformed dataset
+                            datasetId = latestDataset._id;
+                            
                             successElement.innerHTML = `
                                 <div class="alert-heading h5"><i class="fas fa-check-circle"></i> Success!</div>
                                 <p>Transformations may have completed.</p>
@@ -1036,6 +1134,19 @@
                                     </a>
                                 </div>
                             `;
+                            
+                            // Clear EDA content to force refresh
+                            document.getElementById('correlationMatrix').innerHTML = '';
+                            document.getElementById('distributionPlots').innerHTML = '';
+                            document.getElementById('featureRelationships').innerHTML = '';
+                            document.getElementById('missingValues').innerHTML = '';
+                            document.getElementById('outlierDetection').innerHTML = '';
+                            
+                            // If we're already on the EDA tab, reload it
+                            if (document.getElementById('eda-tab').classList.contains('active')) {
+                                loadEDA();
+                            }
+                            
                             return;
                         }
                     }
@@ -1079,6 +1190,9 @@
                 // If we have a new dataset, assume it's the one we just created
                 if (datasets.length > 0) {
                     const latestDataset = datasets[0];
+                    // Update the current dataset ID to the new transformed dataset
+                    datasetId = latestDataset._id;
+                    
                     successElement.innerHTML = `
                         <div class="alert-heading h5"><i class="fas fa-info-circle"></i> Information</div>
                         <p>Feature engineering is taking longer than expected.</p>
@@ -1091,6 +1205,19 @@
                             </a>
                         </div>
                     `;
+                    
+                    // Clear EDA content to force refresh
+                    document.getElementById('correlationMatrix').innerHTML = '';
+                    document.getElementById('distributionPlots').innerHTML = '';
+                    document.getElementById('featureRelationships').innerHTML = '';
+                    document.getElementById('missingValues').innerHTML = '';
+                    document.getElementById('outlierDetection').innerHTML = '';
+                    
+                    // If we're already on the EDA tab, reload it
+                    if (document.getElementById('eda-tab').classList.contains('active')) {
+                        loadEDA();
+                    }
+                    
                     return;
                 }
             }
