@@ -403,13 +403,7 @@
                         </div>
                         
                         <div id="causalResults" style="display: none;">
-                            <div class="card mb-4">
-                                <div class="card-header">Causal Inference Results</div>
-                                <div class="card-body">
-                                    <div id="causalGraph"></div>
-                                    <div id="causalExplanation" class="mt-3"></div>
-                                </div>
-                            </div>
+                            <!-- Causal analysis results will be displayed here -->
                         </div>
                     </div>
                 </div>
@@ -1684,34 +1678,70 @@
             // Clear previous results
             document.getElementById('anomalyResults').style.display = 'none';
             
-            // Make API call
-            const response = await fetch(`/api/v1/dataset/${datasetId}/anomalies?method=${method}&threshold=${threshold}`, {
+            console.log(`Detecting anomalies with method: ${method}, threshold: ${threshold}, dataset: ${datasetId}`);
+            
+            // Make API call with correct URL prefix
+            const response = await fetch(`/api/v1/${datasetId}/anomalies?method=${method}&threshold=${threshold}`, {
                 method: 'GET'
             });
             
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Anomaly detection error response:", errorText);
                 throw new Error(`Failed to detect anomalies: ${response.status} ${response.statusText}`);
             }
             
             const data = await response.json();
+            console.log("Anomaly detection response:", data);
             
             // Display results
             const anomalyPlot = document.getElementById('anomalyPlot');
             const anomalySummary = document.getElementById('anomalySummary');
             
-            // Create a placeholder for the plot (in a real implementation, this would use a visualization library)
-            anomalyPlot.innerHTML = `<div class="alert alert-info">Anomaly detection visualization would be displayed here using a library like Plotly.js</div>`;
-            
             // Create a summary of the anomalies
             anomalySummary.innerHTML = `
                 <h5>Anomaly Detection Summary</h5>
-                <p>Method: ${method}</p>
-                <p>Threshold: ${threshold}</p>
-                <p>Total anomalies detected: ${Math.floor(Math.random() * 20) + 1}</p>
-                <div class="alert alert-warning">
-                    <strong>Note:</strong> This is a placeholder. In a real implementation, this would show actual anomaly detection results.
-                </div>
+                <p><strong>Method:</strong> ${data.method}</p>
+                <p><strong>Threshold:</strong> ${data.threshold}</p>
+                <p><strong>Total rows:</strong> ${data.total_rows}</p>
+                <p><strong>Anomalies detected:</strong> ${data.anomaly_count} (${data.anomaly_percentage.toFixed(2)}%)</p>
             `;
+            
+            // Display anomalous rows in a table
+            if (data.anomalous_rows && data.anomalous_rows.length > 0) {
+                const columns = Object.keys(data.anomalous_rows[0]);
+                
+                let tableHTML = `
+                    <h5 class="mt-4">Anomalous Data Points</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    ${columns.map(col => `<th>${col}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                // Add rows
+                data.anomalous_rows.forEach(row => {
+                    tableHTML += '<tr>';
+                    columns.forEach(col => {
+                        tableHTML += `<td>${row[col]}</td>`;
+                    });
+                    tableHTML += '</tr>';
+                });
+                
+                tableHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                anomalyPlot.innerHTML = tableHTML;
+            } else {
+                anomalyPlot.innerHTML = `<div class="alert alert-info">No anomalies detected with the current settings.</div>`;
+            }
             
             // Show the results
             document.getElementById('anomalyResults').style.display = 'block';
@@ -1745,46 +1775,68 @@
             // Clear previous results
             document.getElementById('correlationResults').style.display = 'none';
             
-            // Make API call (this would be implemented in the backend)
-            // For now, we'll simulate a response
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            console.log(`Explaining correlations with method: ${method}, threshold: ${threshold}, dataset: ${datasetId}`);
+            
+            // Make API call with correct URL prefix
+            const response = await fetch(`/api/v1/${datasetId}/correlation-explanation?method=${method}&threshold=${threshold}`, {
+                method: 'GET'
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Correlation explanation error response:", errorText);
+                throw new Error(`Failed to explain correlations: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log("Correlation explanation response:", data);
             
             // Display results
             const correlationExplanations = document.getElementById('correlationExplanations');
             const correlationNetwork = document.getElementById('correlationNetwork');
             
-            // Create explanations (placeholder)
-            correlationExplanations.innerHTML = `
-                <h5>Correlation Explanations</h5>
-                <div class="alert alert-info mb-3">
-                    <strong>Method:</strong> ${method}, <strong>Threshold:</strong> ${threshold}
-                </div>
-                <div class="card mb-3">
-                    <div class="card-header bg-light">Strong Positive Correlation</div>
-                    <div class="card-body">
-                        <p><strong>Feature A</strong> and <strong>Feature B</strong> have a strong positive correlation (0.85).</p>
-                        <p><em>Explanation:</em> As Feature A increases, Feature B tends to increase at a similar rate. This suggests these features might be measuring related aspects or could be redundant.</p>
+            // Display correlation explanations
+            if (data.strong_correlations && data.strong_correlations.length > 0) {
+                let explanationsHTML = `
+                    <h5>Strong Correlations Explained</h5>
+                    <div class="list-group">
+                `;
+                
+                data.strong_correlations.forEach(corr => {
+                    const correlationClass = corr.type === 'positive' ? 'text-success' : 'text-danger';
+                    const correlationValue = corr.correlation.toFixed(3);
+                    
+                    explanationsHTML += `
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6>${corr.feature1} ↔ ${corr.feature2}</h6>
+                                <span class="badge bg-primary ${correlationClass}">${correlationValue}</span>
+                            </div>
+                            <p class="mb-1">${corr.explanation}</p>
+                            <small class="text-muted">Strength: ${corr.strength}</small>
+                        </div>
+                    `;
+                });
+                
+                explanationsHTML += `</div>`;
+                correlationExplanations.innerHTML = explanationsHTML;
+                
+                // Simple visualization of correlation network
+                correlationNetwork.innerHTML = `
+                    <h5 class="mt-4">Correlation Network</h5>
+                    <div class="alert alert-info">
+                        A network visualization would be displayed here in a production environment.
                     </div>
-                </div>
-                <div class="card mb-3">
-                    <div class="card-header bg-light">Strong Negative Correlation</div>
-                    <div class="card-body">
-                        <p><strong>Feature C</strong> and <strong>Feature D</strong> have a strong negative correlation (-0.72).</p>
-                        <p><em>Explanation:</em> As Feature C increases, Feature D tends to decrease proportionally. This inverse relationship might indicate an important trade-off in your data.</p>
+                `;
+            } else {
+                correlationExplanations.innerHTML = `
+                    <div class="alert alert-info">
+                        No strong correlations found with the current threshold (${threshold}).
+                        Try lowering the threshold to see more correlations.
                     </div>
-                </div>
-                <div class="alert alert-warning">
-                    <strong>Note:</strong> This is a placeholder. In a real implementation, this would show actual correlation explanations.
-                </div>
-            `;
-            
-            // Create network visualization placeholder
-            correlationNetwork.innerHTML = `
-                <h5>Correlation Network</h5>
-                <div class="alert alert-info">
-                    A network visualization of feature correlations would be displayed here using a library like D3.js
-                </div>
-            `;
+                `;
+                correlationNetwork.innerHTML = '';
+            }
             
             // Show the results
             document.getElementById('correlationResults').style.display = 'block';
@@ -1806,32 +1858,14 @@
         }
     }
     
-    function populateCausalTargets() {
-        // This would fetch the dataset columns and populate the dropdown
-        const targetDropdown = document.getElementById('causalTarget');
-        
-        // Clear existing options except the first one
-        while (targetDropdown.options.length > 1) {
-            targetDropdown.remove(1);
-        }
-        
-        // Add placeholder options (in a real implementation, these would be actual columns)
-        const placeholderColumns = ['Feature A', 'Feature B', 'Feature C', 'Target Variable'];
-        placeholderColumns.forEach(column => {
-            const option = document.createElement('option');
-            option.value = column;
-            option.text = column;
-            targetDropdown.add(option);
-        });
-    }
-    
     async function analyzeCausality() {
         try {
             const target = document.getElementById('causalTarget').value;
             const method = document.getElementById('causalMethod').value;
             
             if (!target) {
-                throw new Error('Please select a target variable');
+                alert('Please select a target variable');
+                return;
             }
             
             // Show loading state
@@ -1841,51 +1875,88 @@
             // Clear previous results
             document.getElementById('causalResults').style.display = 'none';
             
-            // Make API call (this would be implemented in the backend)
-            // For now, we'll simulate a response
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            console.log(`Analyzing causality for target: ${target}, method: ${method}, dataset: ${datasetId}`);
+            
+            // Make API call with correct URL prefix
+            const response = await fetch(`/api/v1/${datasetId}/causal-analysis`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ target, method })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Causal analysis error response:", errorText);
+                throw new Error(`Failed to analyze causality: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log("Causal analysis response:", data);
             
             // Display results
-            const causalGraph = document.getElementById('causalGraph');
-            const causalExplanation = document.getElementById('causalExplanation');
+            const causalResults = document.getElementById('causalResults');
             
-            // Create graph placeholder
-            causalGraph.innerHTML = `
-                <h5>Causal Graph for ${target}</h5>
-                <div class="alert alert-info">
-                    A causal graph visualization would be displayed here using a library like D3.js
-                </div>
-            `;
-            
-            // Create explanation placeholder
-            causalExplanation.innerHTML = `
-                <h5>Causal Analysis Results</h5>
-                <div class="alert alert-info mb-3">
-                    <strong>Target:</strong> ${target}, <strong>Method:</strong> ${method}
-                </div>
-                <div class="card mb-3">
-                    <div class="card-header bg-light">Potential Causes</div>
-                    <div class="card-body">
-                        <p>The analysis suggests that <strong>Feature A</strong> and <strong>Feature B</strong> may have causal effects on <strong>${target}</strong>.</p>
-                        <ul>
-                            <li><strong>Feature A</strong> has an estimated effect of +0.42 (moderate positive effect)</li>
-                            <li><strong>Feature B</strong> has an estimated effect of -0.28 (small negative effect)</li>
-                        </ul>
+            if (data.potential_causes && data.potential_causes.length > 0) {
+                let resultsHTML = `
+                    <div class="card mb-4">
+                        <div class="card-header">Causal Analysis Results for ${target}</div>
+                        <div class="card-body">
+                            <p><strong>Method:</strong> ${data.method}</p>
+                            <p><strong>Target Variable:</strong> ${data.target}</p>
+                            
+                            <h5 class="mt-4">Potential Causes</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Variable</th>
+                                            <th>Correlation</th>
+                                            <th>Direction</th>
+                                            <th>Strength</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                `;
+                
+                data.potential_causes.forEach(cause => {
+                    const correlationValue = cause.correlation.toFixed(3);
+                    const correlationClass = cause.direction === 'positive' ? 'text-success' : 'text-danger';
+                    
+                    resultsHTML += `
+                        <tr>
+                            <td>${cause.feature}</td>
+                            <td class="${correlationClass}">${correlationValue}</td>
+                            <td>${cause.direction}</td>
+                            <td>${cause.strength}</td>
+                        </tr>
+                    `;
+                });
+                
+                resultsHTML += `
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="alert alert-info mt-3">
+                                <strong>Note:</strong> ${data.disclaimer || "Causal relationships are inferred from observational data and should be validated with domain knowledge and controlled experiments."}
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="card mb-3">
-                    <div class="card-header bg-light">Confounding Variables</div>
-                    <div class="card-body">
-                        <p><strong>Feature C</strong> appears to be a confounding variable that affects both <strong>Feature A</strong> and <strong>${target}</strong>.</p>
+                `;
+                
+                causalResults.innerHTML = resultsHTML;
+            } else {
+                causalResults.innerHTML = `
+                    <div class="alert alert-info">
+                        No significant causal relationships found for ${target} using the ${method} method.
                     </div>
-                </div>
-                <div class="alert alert-warning">
-                    <strong>Note:</strong> This is a placeholder. In a real implementation, this would show actual causal analysis results.
-                </div>
-            `;
+                `;
+            }
             
             // Show the results
-            document.getElementById('causalResults').style.display = 'block';
+            causalResults.style.display = 'block';
             
         } catch (error) {
             console.error('Error analyzing causality:', error);
@@ -1901,6 +1972,78 @@
             // Reset button
             document.getElementById('analyzeCausalBtn').disabled = false;
             document.getElementById('analyzeCausalBtn').innerHTML = 'Analyze Causality';
+        }
+    }
+    
+    // Function to populate causal target dropdown with numeric columns
+    async function populateCausalTargets() {
+        try {
+            // Get dataset info to extract column names with correct URL prefix
+            const response = await fetch(`/api/v1/${datasetId}`);
+            
+            if (!response.ok) {
+                throw new Error(`Failed to get dataset info: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log("Dataset info for causal targets:", data);
+            
+            // Get the dropdown
+            const targetDropdown = document.getElementById('causalTarget');
+            
+            // Clear existing options except the first one
+            while (targetDropdown.options.length > 1) {
+                targetDropdown.remove(1);
+            }
+            
+            // Add numeric columns as options
+            if (data.columns && data.metadata && data.metadata.dtypes) {
+                // Filter for numeric columns based on their data types
+                const numericColumns = data.columns.filter(column => {
+                    const dtype = data.metadata.dtypes[column] || "";
+                    return dtype.includes('int') || dtype.includes('float') || dtype.includes('number');
+                });
+                
+                console.log("Numeric columns found:", numericColumns);
+                
+                numericColumns.forEach(column => {
+                    const option = document.createElement('option');
+                    option.value = column;
+                    option.textContent = column;
+                    targetDropdown.appendChild(option);
+                });
+                
+                // If we found numeric columns, enable the analyze button
+                document.getElementById('analyzeCausalBtn').disabled = numericColumns.length === 0;
+                
+                // Show a message if no numeric columns were found
+                if (numericColumns.length === 0) {
+                    console.warn("No numeric columns found for causal analysis");
+                    // Add a disabled option with a message
+                    const option = document.createElement('option');
+                    option.value = "";
+                    option.textContent = "No numeric columns available";
+                    option.disabled = true;
+                    targetDropdown.appendChild(option);
+                }
+            } else {
+                console.error("Dataset response missing required structure:", data);
+                // Add a disabled option with an error message
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "Error loading columns";
+                option.disabled = true;
+                targetDropdown.appendChild(option);
+            }
+        } catch (error) {
+            console.error('Error populating causal targets:', error);
+            // Add a disabled option with an error message
+            const targetDropdown = document.getElementById('causalTarget');
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "Error: " + error.message;
+            option.disabled = true;
+            targetDropdown.appendChild(option);
         }
     }
     

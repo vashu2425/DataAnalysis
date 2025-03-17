@@ -1738,7 +1738,7 @@ async def download_dataset(dataset_id: str):
 
 # New endpoints for advanced analytics features
 
-@router.get("/dataset/{dataset_id}/anomalies")
+@router.get("/{dataset_id}/anomalies")
 async def detect_anomalies(
     dataset_id: str,
     method: str = Query("isolation_forest", enum=["isolation_forest", "lof", "dbscan"]),
@@ -1770,6 +1770,24 @@ async def detect_anomalies(
                 status_code=400,
                 content={"detail": "No numeric columns found for anomaly detection"}
             )
+        
+        # Check for NaN values and handle them
+        if numeric_df.isna().any().any():
+            print(f"Dataset contains NaN values. Imputing missing values...")
+            # Import the imputer
+            from sklearn.impute import SimpleImputer
+            
+            # Create an imputer that replaces NaN with the median value of each column
+            imputer = SimpleImputer(strategy='median')
+            
+            # Fit and transform the data
+            numeric_df_imputed = pd.DataFrame(
+                imputer.fit_transform(numeric_df),
+                columns=numeric_df.columns
+            )
+            
+            # Use the imputed dataframe for anomaly detection
+            numeric_df = numeric_df_imputed
         
         # Detect anomalies based on the method
         anomaly_scores = None
@@ -1822,7 +1840,7 @@ async def detect_anomalies(
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/dataset/{dataset_id}/correlation-explanation")
+@router.get("/{dataset_id}/correlation-explanation")
 async def explain_correlations(
     dataset_id: str,
     method: str = Query("pearson", enum=["pearson", "spearman", "kendall"]),
@@ -1854,6 +1872,24 @@ async def explain_correlations(
                 status_code=400,
                 content={"detail": "No numeric columns found for correlation analysis"}
             )
+        
+        # Check for NaN values and handle them
+        if numeric_df.isna().any().any():
+            print(f"Dataset contains NaN values. Imputing missing values for correlation analysis...")
+            # Import the imputer
+            from sklearn.impute import SimpleImputer
+            
+            # Create an imputer that replaces NaN with the median value of each column
+            imputer = SimpleImputer(strategy='median')
+            
+            # Fit and transform the data
+            numeric_df_imputed = pd.DataFrame(
+                imputer.fit_transform(numeric_df),
+                columns=numeric_df.columns
+            )
+            
+            # Use the imputed dataframe for correlation analysis
+            numeric_df = numeric_df_imputed
         
         # Calculate correlation matrix
         corr_matrix = numeric_df.corr(method=method)
@@ -1909,7 +1945,7 @@ async def explain_correlations(
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/dataset/{dataset_id}/causal-analysis")
+@router.post("/{dataset_id}/causal-analysis")
 async def analyze_causality(
     dataset_id: str,
     target: str = Body(...),
@@ -1948,6 +1984,24 @@ async def analyze_causality(
                 status_code=400,
                 content={"detail": "No numeric columns found for causal analysis"}
             )
+        
+        # Check for NaN values and handle them
+        if numeric_df.isna().any().any():
+            print(f"Dataset contains NaN values. Imputing missing values for causal analysis...")
+            # Import the imputer
+            from sklearn.impute import SimpleImputer
+            
+            # Create an imputer that replaces NaN with the median value of each column
+            imputer = SimpleImputer(strategy='median')
+            
+            # Fit and transform the data
+            numeric_df_imputed = pd.DataFrame(
+                imputer.fit_transform(numeric_df),
+                columns=numeric_df.columns
+            )
+            
+            # Use the imputed dataframe for causal analysis
+            numeric_df = numeric_df_imputed
         
         # For now, implement a simple correlation-based approach
         # In a real implementation, this would use more sophisticated causal inference methods
@@ -2000,7 +2054,7 @@ async def analyze_causality(
 
 # Collaboration endpoints
 
-@router.post("/dataset/{dataset_id}/share")
+@router.post("/{dataset_id}/share")
 async def share_project(
     dataset_id: str,
     email: str = Body(...),
@@ -2028,7 +2082,7 @@ async def share_project(
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/dataset/{dataset_id}/version")
+@router.post("/{dataset_id}/version")
 async def create_version(
     dataset_id: str,
     name: str = Body(...),
@@ -2060,7 +2114,7 @@ async def create_version(
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/dataset/{dataset_id}/comment")
+@router.post("/{dataset_id}/comment")
 async def add_comment(
     dataset_id: str,
     text: str = Body(..., embed=True)
@@ -2091,13 +2145,13 @@ async def add_comment(
         print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/dataset/{dataset_id}/annotation")
+@router.post("/{dataset_id}/annotation")
 async def add_annotation(
     dataset_id: str,
     text: str = Body(...),
     data_point: Dict[str, Any] = Body(...)
 ):
-    """Add an annotation to a specific data point"""
+    """Add an annotation to a specific data point in the dataset"""
     try:
         # Get dataset from database
         dataset = datasets_collection.find_one({"_id": ObjectId(dataset_id)})
