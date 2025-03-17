@@ -551,12 +551,21 @@
         // Check if the endpoint already starts with a slash
         const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
         
-        // For the new advanced analytics endpoints that don't use the /dataset/ prefix
-        const advancedEndpoints = ['/anomalies', '/correlation-explanation', '/causal-analysis'];
-        const needsDatasetPrefix = includeDatasetPrefix && !advancedEndpoints.some(e => formattedEndpoint.includes(e));
+        // Log the URL construction for debugging
+        console.log(`Constructing URL for endpoint: ${formattedEndpoint}`);
+        console.log(`Dataset ID: ${datasetId}`);
         
-        // Construct the URL with or without the /dataset/ prefix
-        return `/api/v1${needsDatasetPrefix ? '/dataset' : ''}/${datasetId}${formattedEndpoint}`;
+        // Advanced analytics endpoints don't use the /dataset/ prefix in the backend
+        const advancedEndpoints = ['/anomalies', '/correlation-explanation', '/causal-analysis'];
+        const isAdvancedEndpoint = advancedEndpoints.some(e => formattedEndpoint.includes(e));
+        
+        if (isAdvancedEndpoint) {
+            // For advanced analytics endpoints
+            return `/api/v1/${datasetId}${formattedEndpoint}`;
+        } else {
+            // For regular endpoints
+            return `/api/v1/dataset/${datasetId}${formattedEndpoint}`;
+        }
     }
     
     // Initialize page
@@ -1692,17 +1701,32 @@
             // Clear previous results
             document.getElementById('anomalyResults').style.display = 'none';
             
-            console.log(`Detecting anomalies with method: ${method}, threshold: ${threshold}, dataset: ${datasetId}`);
+            const apiUrl = getApiUrl(`/anomalies?method=${method}&threshold=${threshold}`);
+            console.log(`Making API call to: ${apiUrl}`);
             
-            // Make API call with correct URL prefix
-            const response = await fetch(getApiUrl(`/anomalies?method=${method}&threshold=${threshold}`, false), {
-                method: 'GET'
+            // Make API call
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
             
+            console.log(`Response status: ${response.status}`);
+            
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Anomaly detection error response:", errorText);
-                throw new Error(`Failed to detect anomalies: ${response.status} ${response.statusText}`);
+                let errorMessage = `Failed to detect anomalies: ${response.status} ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.detail) {
+                        errorMessage += ` - ${errorData.detail}`;
+                    }
+                } catch (e) {
+                    const errorText = await response.text();
+                    errorMessage += ` - ${errorText}`;
+                }
+                console.error("Anomaly detection error:", errorMessage);
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();
@@ -1741,7 +1765,7 @@
                 data.anomalous_rows.forEach(row => {
                     tableHTML += '<tr>';
                     columns.forEach(col => {
-                        tableHTML += `<td>${row[col]}</td>`;
+                        tableHTML += `<td>${row[col] !== null ? row[col] : 'N/A'}</td>`;
                     });
                     tableHTML += '</tr>';
                 });
@@ -1762,12 +1786,15 @@
             
         } catch (error) {
             console.error('Error detecting anomalies:', error);
-            // Show error message
+            // Show detailed error message
             const anomalyResults = document.getElementById('anomalyResults');
             anomalyResults.style.display = 'block';
             anomalyResults.innerHTML = `
                 <div class="alert alert-danger">
                     <strong>Error:</strong> ${error.message || 'Failed to detect anomalies'}
+                    <div class="mt-2">
+                        <small>Please check the browser console for more details.</small>
+                    </div>
                 </div>
             `;
         } finally {
@@ -1789,17 +1816,32 @@
             // Clear previous results
             document.getElementById('correlationResults').style.display = 'none';
             
-            console.log(`Explaining correlations with method: ${method}, threshold: ${threshold}, dataset: ${datasetId}`);
+            const apiUrl = getApiUrl(`/correlation-explanation?method=${method}&threshold=${threshold}`);
+            console.log(`Making API call to: ${apiUrl}`);
             
-            // Make API call with correct URL prefix
-            const response = await fetch(getApiUrl(`/correlation-explanation?method=${method}&threshold=${threshold}`, false), {
-                method: 'GET'
+            // Make API call
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
             
+            console.log(`Response status: ${response.status}`);
+            
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Correlation explanation error response:", errorText);
-                throw new Error(`Failed to explain correlations: ${response.status} ${response.statusText}`);
+                let errorMessage = `Failed to explain correlations: ${response.status} ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.detail) {
+                        errorMessage += ` - ${errorData.detail}`;
+                    }
+                } catch (e) {
+                    const errorText = await response.text();
+                    errorMessage += ` - ${errorText}`;
+                }
+                console.error("Correlation explanation error:", errorMessage);
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();
@@ -1857,12 +1899,15 @@
             
         } catch (error) {
             console.error('Error explaining correlations:', error);
-            // Show error message
+            // Show detailed error message
             const correlationResults = document.getElementById('correlationResults');
             correlationResults.style.display = 'block';
             correlationResults.innerHTML = `
                 <div class="alert alert-danger">
                     <strong>Error:</strong> ${error.message || 'Failed to explain correlations'}
+                    <div class="mt-2">
+                        <small>Please check the browser console for more details.</small>
+                    </div>
                 </div>
             `;
         } finally {
@@ -1889,21 +1934,34 @@
             // Clear previous results
             document.getElementById('causalResults').style.display = 'none';
             
-            console.log(`Analyzing causality for target: ${target}, method: ${method}, dataset: ${datasetId}`);
+            const apiUrl = getApiUrl('/causal-analysis');
+            console.log(`Making API call to: ${apiUrl} with target: ${target}, method: ${method}`);
             
-            // Make API call with correct URL prefix
-            const response = await fetch(getApiUrl('/causal-analysis', false), {
+            // Make API call
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({ target, method })
             });
             
+            console.log(`Response status: ${response.status}`);
+            
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Causal analysis error response:", errorText);
-                throw new Error(`Failed to analyze causality: ${response.status} ${response.statusText}`);
+                let errorMessage = `Failed to analyze causality: ${response.status} ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.detail) {
+                        errorMessage += ` - ${errorData.detail}`;
+                    }
+                } catch (e) {
+                    const errorText = await response.text();
+                    errorMessage += ` - ${errorText}`;
+                }
+                console.error("Causal analysis error:", errorMessage);
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();
@@ -1974,12 +2032,15 @@
             
         } catch (error) {
             console.error('Error analyzing causality:', error);
-            // Show error message
+            // Show detailed error message
             const causalResults = document.getElementById('causalResults');
             causalResults.style.display = 'block';
             causalResults.innerHTML = `
                 <div class="alert alert-danger">
                     <strong>Error:</strong> ${error.message || 'Failed to analyze causality'}
+                    <div class="mt-2">
+                        <small>Please check the browser console for more details.</small>
+                    </div>
                 </div>
             `;
         } finally {

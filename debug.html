@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 20px; }
+        .btn { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background-color: #45a049; }
+        pre { background-color: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Debug Tool</h1>
+        
+        <div class="card">
+            <h2>Test Anomaly Detection</h2>
+            <p>Dataset ID: <input type="text" id="datasetId" value="67d7b59974e5807110791dfd" style="width: 300px;"></p>
+            <p>
+                Method: 
+                <select id="anomalyMethod">
+                    <option value="isolation_forest">Isolation Forest</option>
+                    <option value="lof">Local Outlier Factor</option>
+                    <option value="dbscan">DBSCAN</option>
+                </select>
+                Threshold: <input type="number" id="anomalyThreshold" value="0.05" step="0.01" min="0.01" max="0.2">
+            </p>
+            <button class="btn" onclick="testAnomalyDetection()">Test Anomaly Detection</button>
+            <div id="anomalyResult" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Test Correlation Explanation</h2>
+            <p>
+                Method: 
+                <select id="correlationMethod">
+                    <option value="pearson">Pearson</option>
+                    <option value="spearman">Spearman</option>
+                    <option value="kendall">Kendall</option>
+                </select>
+                Threshold: <input type="number" id="correlationThreshold" value="0.5" step="0.05" min="0.1" max="0.9">
+            </p>
+            <button class="btn" onclick="testCorrelationExplanation()">Test Correlation Explanation</button>
+            <div id="correlationResult" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Test Causal Analysis</h2>
+            <p>
+                Target: <input type="text" id="causalTarget" value="quality">
+                Method: 
+                <select id="causalMethod">
+                    <option value="correlation">Correlation-based</option>
+                    <option value="propensity">Propensity Matching</option>
+                </select>
+            </p>
+            <button class="btn" onclick="testCausalAnalysis()">Test Causal Analysis</button>
+            <div id="causalResult" style="margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Helper function to get API URL
+        function getApiUrl(endpoint) {
+            const datasetId = document.getElementById('datasetId').value;
+            return `/api/v1/${datasetId}${endpoint}`;
+        }
+        
+        // Helper function to display results
+        function displayResult(elementId, success, message, data) {
+            const element = document.getElementById(elementId);
+            if (success) {
+                element.innerHTML = `<div class="success">Success!</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } else {
+                element.innerHTML = `<div class="error">Error: ${message}</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+        }
+        
+        // Test anomaly detection
+        async function testAnomalyDetection() {
+            try {
+                const method = document.getElementById('anomalyMethod').value;
+                const threshold = document.getElementById('anomalyThreshold').value;
+                
+                document.getElementById('anomalyResult').innerHTML = '<div>Loading...</div>';
+                
+                const apiUrl = getApiUrl(`/anomalies?method=${method}&threshold=${threshold}`);
+                console.log(`Making API call to: ${apiUrl}`);
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET'
+                });
+                
+                console.log(`Response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("Anomaly detection error response:", errorText);
+                    throw new Error(`Failed to detect anomalies: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log("Anomaly detection response:", data);
+                
+                displayResult('anomalyResult', true, '', data);
+            } catch (error) {
+                console.error('Error detecting anomalies:', error);
+                displayResult('anomalyResult', false, error.message, {});
+            }
+        }
+        
+        // Test correlation explanation
+        async function testCorrelationExplanation() {
+            try {
+                const method = document.getElementById('correlationMethod').value;
+                const threshold = document.getElementById('correlationThreshold').value;
+                
+                document.getElementById('correlationResult').innerHTML = '<div>Loading...</div>';
+                
+                const apiUrl = getApiUrl(`/correlation-explanation?method=${method}&threshold=${threshold}`);
+                console.log(`Making API call to: ${apiUrl}`);
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET'
+                });
+                
+                console.log(`Response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("Correlation explanation error response:", errorText);
+                    throw new Error(`Failed to explain correlations: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log("Correlation explanation response:", data);
+                
+                displayResult('correlationResult', true, '', {
+                    method: data.method,
+                    threshold: data.threshold,
+                    strong_correlations_count: data.strong_correlations ? data.strong_correlations.length : 0
+                });
+            } catch (error) {
+                console.error('Error explaining correlations:', error);
+                displayResult('correlationResult', false, error.message, {});
+            }
+        }
+        
+        // Test causal analysis
+        async function testCausalAnalysis() {
+            try {
+                const target = document.getElementById('causalTarget').value;
+                const method = document.getElementById('causalMethod').value;
+                
+                if (!target) {
+                    throw new Error('Please enter a target variable');
+                }
+                
+                document.getElementById('causalResult').innerHTML = '<div>Loading...</div>';
+                
+                const apiUrl = getApiUrl('/causal-analysis');
+                console.log(`Making API call to: ${apiUrl} with target: ${target}, method: ${method}`);
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ target, method })
+                });
+                
+                console.log(`Response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("Causal analysis error response:", errorText);
+                    throw new Error(`Failed to analyze causality: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log("Causal analysis response:", data);
+                
+                displayResult('causalResult', true, '', {
+                    target: data.target,
+                    method: data.method,
+                    potential_causes_count: data.potential_causes ? data.potential_causes.length : 0
+                });
+            } catch (error) {
+                console.error('Error analyzing causality:', error);
+                displayResult('causalResult', false, error.message, {});
+            }
+        }
+    </script>
+</body>
+</html> 
