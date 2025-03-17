@@ -545,6 +545,20 @@
         }
     }
     
+    // Add this helper function after the datasetId definition
+    // Helper function to get the correct API endpoint URL
+    function getApiUrl(endpoint, includeDatasetPrefix = true) {
+        // Check if the endpoint already starts with a slash
+        const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        
+        // For the new advanced analytics endpoints that don't use the /dataset/ prefix
+        const advancedEndpoints = ['/anomalies', '/correlation-explanation', '/causal-analysis'];
+        const needsDatasetPrefix = includeDatasetPrefix && !advancedEndpoints.some(e => formattedEndpoint.includes(e));
+        
+        // Construct the URL with or without the /dataset/ prefix
+        return `/api/v1${needsDatasetPrefix ? '/dataset' : ''}/${datasetId}${formattedEndpoint}`;
+    }
+    
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
         if (!datasetId) {
@@ -563,8 +577,8 @@
         console.log("Working with dataset ID:", datasetId);
         
         // Set up download buttons
-        document.getElementById('downloadBtn').href = `/api/v1/dataset/${datasetId}/download`;
-        document.getElementById('downloadEDAReportBtn').href = `/api/v1/dataset/${datasetId}/eda-report`;
+        document.getElementById('downloadBtn').href = getApiUrl('/download');
+        document.getElementById('downloadEDAReportBtn').href = getApiUrl('/eda-report');
         
         // Load dataset information
         loadDatasetInfo();
@@ -605,13 +619,13 @@
         });
 
         document.getElementById('downloadEDABtn').addEventListener('click', function() {
-            window.open(`/api/v1/dataset/${datasetId}/eda-report`, '_blank');
+            window.open(getApiUrl("/eda-report"), "_blank");
         });
         
         // Add event listener for the new download EDA report button in the dropdown
         document.getElementById('downloadEDAReportBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            window.open(`/api/v1/dataset/${datasetId}/eda-report`, '_blank');
+            window.open(getApiUrl("/eda-report"), "_blank");
         });
         
         // Add event delegation for viewTransformedBtn clicks
@@ -629,8 +643,8 @@
                         window.history.pushState({}, '', `/analysis/${datasetId}`);
                         
                         // Update the download buttons
-                        document.getElementById('downloadBtn').href = `/api/v1/dataset/${datasetId}/download`;
-                        document.getElementById('downloadEDAReportBtn').href = `/api/v1/dataset/${datasetId}/eda-report`;
+                        document.getElementById('downloadBtn').href = getApiUrl('/download');
+                        document.getElementById('downloadEDAReportBtn').href = getApiUrl('/eda-report');
                         
                         // Clear existing content to force reload
                         document.getElementById('correlationMatrix').innerHTML = '';
@@ -659,7 +673,7 @@
             toggleSpinner('loadingSpinner', true);
             
             // Use fetch directly with error handling
-            const response = await fetch(`/api/v1/dataset/${datasetId}`);
+            const response = await fetch(getApiUrl(''));
             if (!response.ok) {
                 throw new Error(`Failed to load dataset: ${response.status} ${response.statusText}`);
             }
@@ -763,7 +777,7 @@
             spinner.style.display = 'block';
             
             // Use fetch directly with error handling
-            const response = await fetch(`/api/v1/dataset/${datasetId}/eda`);
+            const response = await fetch(getApiUrl('/eda'));
             if (!response.ok) {
                 throw new Error(`Failed to load EDA: ${response.status} ${response.statusText}`);
             }
@@ -1122,7 +1136,7 @@
             spinner.style.display = 'block';
             
             // Use fetch directly with error handling
-            const response = await fetch(`/api/v1/dataset/${datasetId}/suggestions`);
+            const response = await fetch(getApiUrl('/suggestions'));
             if (!response.ok) {
                 throw new Error(`Failed to load suggestions: ${response.status} ${response.statusText}`);
             }
@@ -1233,7 +1247,7 @@
             console.log("Sending apply-features request:", requestData);
             
             // Use fetch directly with error handling
-            const response = await fetch(`/api/v1/dataset/${datasetId}/apply-features`, {
+            const response = await fetch(getApiUrl('/apply-features'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1504,7 +1518,7 @@
             const varianceThreshold = parseFloat(document.getElementById('varianceThreshold').value);
             
             // Prepare request
-            const response = await fetch(`/api/v1/dataset/${datasetId}/pca?n_components=${pcaComponents}&variance_threshold=${varianceThreshold}`, {
+            const response = await fetch(getApiUrl(`/pca?n_components=${pcaComponents}&variance_threshold=${varianceThreshold}`), {
                 method: 'POST'
             });
             
@@ -1681,7 +1695,7 @@
             console.log(`Detecting anomalies with method: ${method}, threshold: ${threshold}, dataset: ${datasetId}`);
             
             // Make API call with correct URL prefix
-            const response = await fetch(`/api/v1/${datasetId}/anomalies?method=${method}&threshold=${threshold}`, {
+            const response = await fetch(getApiUrl(`/anomalies?method=${method}&threshold=${threshold}`, false), {
                 method: 'GET'
             });
             
@@ -1778,7 +1792,7 @@
             console.log(`Explaining correlations with method: ${method}, threshold: ${threshold}, dataset: ${datasetId}`);
             
             // Make API call with correct URL prefix
-            const response = await fetch(`/api/v1/${datasetId}/correlation-explanation?method=${method}&threshold=${threshold}`, {
+            const response = await fetch(getApiUrl(`/correlation-explanation?method=${method}&threshold=${threshold}`, false), {
                 method: 'GET'
             });
             
@@ -1878,7 +1892,7 @@
             console.log(`Analyzing causality for target: ${target}, method: ${method}, dataset: ${datasetId}`);
             
             // Make API call with correct URL prefix
-            const response = await fetch(`/api/v1/${datasetId}/causal-analysis`, {
+            const response = await fetch(getApiUrl('/causal-analysis', false), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1979,7 +1993,7 @@
     async function populateCausalTargets() {
         try {
             // Get dataset info to extract column names with correct URL prefix
-            const response = await fetch(`/api/v1/${datasetId}`);
+            const response = await fetch(getApiUrl(""));
             
             if (!response.ok) {
                 throw new Error(`Failed to get dataset info: ${response.status} ${response.statusText}`);
